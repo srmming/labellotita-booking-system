@@ -1,5 +1,26 @@
+# Dependencies
 node_modules/
-.env
-.DS_Store
-*.log
 
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Database exports (备份数据不提交到 Git)
+exports/
+dumps/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
