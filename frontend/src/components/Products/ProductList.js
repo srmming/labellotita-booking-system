@@ -38,10 +38,12 @@ function ProductList() {
         productAPI.getAll(),
         productAPI.getAll('base')
       ]);
-      setProducts(allRes.data);
-      setBaseProducts(baseRes.data);
+      setProducts(Array.isArray(allRes.data) ? allRes.data : []);
+      setBaseProducts(Array.isArray(baseRes.data) ? baseRes.data : []);
     } catch (error) {
       message.error('加载产品列表失败');
+      setProducts([]);
+      setBaseProducts([]);
     } finally {
       setLoading(false);
     }
@@ -119,10 +121,11 @@ function ProductList() {
     try {
       setAdjustingProduct(product);
       const response = await productAPI.getAdjustmentHistory(product._id);
-      setAdjustmentHistory(response.data);
+      setAdjustmentHistory(Array.isArray(response.data) ? response.data : []);
       setHistoryModalVisible(true);
     } catch (error) {
       message.error('加载历史记录失败');
+      setAdjustmentHistory([]);
     }
   };
 

@@ -18,9 +18,10 @@ function CustomerList() {
     try {
       setLoading(true);
       const response = await customerAPI.getAll();
-      setCustomers(response.data);
+      setCustomers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       message.error('加载客户列表失败');
+      setCustomers([]);
     } finally {
       setLoading(false);
     }

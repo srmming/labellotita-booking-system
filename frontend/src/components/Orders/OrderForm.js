@@ -21,10 +21,12 @@ function OrderForm() {
         customerAPI.getAll(),
         productAPI.getAll('combo')  // 只加载组合产品
       ]);
-      setCustomers(customersRes.data);
-      setProducts(productsRes.data);
+      setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
+      setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
     } catch (error) {
       message.error('加载数据失败');
+      setCustomers([]);
+      setProducts([]);
     }
   };
 

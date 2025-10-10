@@ -32,10 +32,17 @@ function Dashboard() {
         orderAPI.getAll()
       ]);
       
-      setStats(statsRes.data);
-      setRecentOrders(ordersRes.data.slice(0, 10));
+      setStats(statsRes.data || {
+        totalOrders: 0,
+        pendingOrders: 0,
+        shippingOrders: 0,
+        completedOrders: 0,
+        totalRevenue: 0
+      });
+      setRecentOrders(Array.isArray(ordersRes.data) ? ordersRes.data.slice(0, 10) : []);
     } catch (error) {
       message.error('加载数据失败');
+      setRecentOrders([]);
     } finally {
       setLoading(false);
     }

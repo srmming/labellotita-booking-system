@@ -15,9 +15,10 @@ function ProductionPlan() {
     try {
       setLoading(true);
       const response = await productionAPI.getPlan();
-      setPlanItems(response.data);
+      setPlanItems(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       message.error('加载生产计划失败');
+      setPlanItems([]);
     } finally {
       setLoading(false);
     }

@@ -51,11 +51,16 @@ function OrderDetail() {
     try {
       setLoading(true);
       const response = await orderAPI.getById(id);
-      setOrder(response.data.order);
-      setShipments(response.data.shipments);
-      setShippedQty(response.data.shippedQty);
+      const orderData = response.data.order;
+      if (orderData && orderData.items) {
+        orderData.items = Array.isArray(orderData.items) ? orderData.items : [];
+      }
+      setOrder(orderData);
+      setShipments(Array.isArray(response.data.shipments) ? response.data.shipments : []);
+      setShippedQty(response.data.shippedQty || {});
     } catch (error) {
       message.error('加载订单详情失败');
+      setShipments([]);
     } finally {
       setLoading(false);
     }

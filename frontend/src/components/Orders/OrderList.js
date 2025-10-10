@@ -24,9 +24,10 @@ function OrderList() {
     try {
       setLoading(true);
       const response = await orderAPI.getAll(filters);
-      setOrders(response.data);
+      setOrders(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       message.error('加载订单列表失败');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
