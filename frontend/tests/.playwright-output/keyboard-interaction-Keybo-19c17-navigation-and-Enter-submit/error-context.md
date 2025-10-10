@@ -1,0 +1,127 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]: 订单管理系统
+    - generic [ref=e5]:
+      - complementary [ref=e6]:
+        - menu [ref=e8]:
+          - menuitem "dashboard 订单概览" [ref=e9] [cursor=pointer]:
+            - img "dashboard" [ref=e10]:
+              - img [ref=e11]
+            - generic [ref=e13]: 订单概览
+          - menuitem "shopping 订单管理" [ref=e14] [cursor=pointer]:
+            - img "shopping" [ref=e15]:
+              - img [ref=e16]
+            - generic [ref=e18]: 订单管理
+          - menuitem "appstore 产品管理" [ref=e19] [cursor=pointer]:
+            - img "appstore" [ref=e20]:
+              - img [ref=e21]
+            - generic [ref=e23]: 产品管理
+          - menuitem "tool 生产计划" [ref=e24] [cursor=pointer]:
+            - img "tool" [ref=e25]:
+              - img [ref=e26]
+            - generic [ref=e28]: 生产计划
+          - menuitem "team 客户管理" [ref=e29] [cursor=pointer]:
+            - img "team" [ref=e30]:
+              - img [ref=e31]
+            - generic [ref=e33]: 客户管理
+      - main [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - heading "客户管理" [level=1] [ref=e38]
+            - button "plus 新增客户" [ref=e39] [cursor=pointer]:
+              - img "plus" [ref=e41]:
+                - img [ref=e42]
+              - generic [ref=e45]: 新增客户
+          - generic [ref=e48]:
+            - table [ref=e52]:
+              - rowgroup [ref=e53]:
+                - row "姓名 电话 邮箱 创建时间 操作" [ref=e54]:
+                  - columnheader "姓名" [ref=e55]
+                  - columnheader "电话" [ref=e56]
+                  - columnheader "邮箱" [ref=e57]
+                  - columnheader "创建时间" [ref=e58]
+                  - columnheader "操作" [ref=e59]
+              - rowgroup [ref=e60]:
+                - row "张三 13800138000 zhangsan@example.com 2025/10/10 17:04:56 edit 编辑 delete 删除" [ref=e61]:
+                  - cell "张三" [ref=e62]
+                  - cell "13800138000" [ref=e63]
+                  - cell "zhangsan@example.com" [ref=e64]
+                  - cell "2025/10/10 17:04:56" [ref=e65]
+                  - cell "edit 编辑 delete 删除" [ref=e66]:
+                    - generic [ref=e67]:
+                      - button "edit 编辑" [ref=e69] [cursor=pointer]:
+                        - img "edit" [ref=e71]:
+                          - img [ref=e72]
+                        - generic [ref=e74]: 编辑
+                      - button "delete 删除" [ref=e76] [cursor=pointer]:
+                        - img "delete" [ref=e78]:
+                          - img [ref=e79]
+                        - generic [ref=e81]: 删除
+                - row "李四 13800138001 lisi@example.com 2025/10/10 17:04:56 edit 编辑 delete 删除" [ref=e82]:
+                  - cell "李四" [ref=e83]
+                  - cell "13800138001" [ref=e84]
+                  - cell "lisi@example.com" [ref=e85]
+                  - cell "2025/10/10 17:04:56" [ref=e86]
+                  - cell "edit 编辑 delete 删除" [ref=e87]:
+                    - generic [ref=e88]:
+                      - button "edit 编辑" [ref=e90] [cursor=pointer]:
+                        - img "edit" [ref=e92]:
+                          - img [ref=e93]
+                        - generic [ref=e95]: 编辑
+                      - button "delete 删除" [ref=e97] [cursor=pointer]:
+                        - img "delete" [ref=e99]:
+                          - img [ref=e100]
+                        - generic [ref=e102]: 删除
+                - row "王五 13800138002 wangwu@example.com 2025/10/10 17:04:56 edit 编辑 delete 删除" [ref=e103]:
+                  - cell "王五" [ref=e104]
+                  - cell "13800138002" [ref=e105]
+                  - cell "wangwu@example.com" [ref=e106]
+                  - cell "2025/10/10 17:04:56" [ref=e107]
+                  - cell "edit 编辑 delete 删除" [ref=e108]:
+                    - generic [ref=e109]:
+                      - button "edit 编辑" [ref=e111] [cursor=pointer]:
+                        - img "edit" [ref=e113]:
+                          - img [ref=e114]
+                        - generic [ref=e116]: 编辑
+                      - button "delete 删除" [ref=e118] [cursor=pointer]:
+                        - img "delete" [ref=e120]:
+                          - img [ref=e121]
+                        - generic [ref=e123]: 删除
+            - list [ref=e124]:
+              - listitem "上一页" [ref=e125]:
+                - button "left" [disabled] [ref=e126]:
+                  - img "left" [ref=e127]:
+                    - img [ref=e128]
+              - listitem "1" [ref=e130] [cursor=pointer]:
+                - generic [ref=e131]: "1"
+              - listitem "下一页" [ref=e132]:
+                - button "right" [disabled] [ref=e133]:
+                  - img "right" [ref=e134]:
+                    - img [ref=e135]
+  - generic [ref=e137]:
+    - dialog "新增客户":
+      - generic [ref=e138]:
+        - button "Close" [ref=e139] [cursor=pointer]:
+          - generic "关闭" [ref=e140]:
+            - img "close" [ref=e141]:
+              - img [ref=e142]
+        - generic [ref=e145]: 新增客户
+        - generic [ref=e147]:
+          - generic [ref=e149]:
+            - generic "姓名" [ref=e151]: "* 姓名"
+            - textbox "* 姓名" [ref=e155]: 测试客户
+          - generic [ref=e157]:
+            - generic "电话" [ref=e159]
+            - textbox "电话" [ref=e163]: "13800138000"
+          - generic [ref=e165]:
+            - generic "邮箱" [ref=e167]
+            - textbox "邮箱" [active] [ref=e171]: test@example.com
+        - generic [ref=e172]:
+          - button "取 消" [ref=e173] [cursor=pointer]:
+            - generic [ref=e174]: 取 消
+          - button "确 定" [ref=e175] [cursor=pointer]:
+            - generic [ref=e176]: 确 定
+```

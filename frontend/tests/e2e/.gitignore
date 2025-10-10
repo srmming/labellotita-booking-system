@@ -1,0 +1,4 @@
+# Ignore Playwright artifacts
+/playwright-report
+/test-results
+\.DS_Store
