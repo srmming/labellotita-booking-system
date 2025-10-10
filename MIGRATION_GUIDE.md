@@ -65,8 +65,16 @@ MONGODB_URI="mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/orde
 
 在部署平台（Railway/Heroku/Render）设置环境变量：
 
+**MongoDB Atlas**：
 ```bash
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/order-system?retryWrites=true&w=majority
+NODE_ENV=production
+PORT=5001
+```
+
+**Railway MongoDB**（需要添加 authSource=admin）：
+```bash
+MONGODB_URI=mongodb://mongo:<password>@crossover.proxy.rlwy.net:<port>/order-system?authSource=admin
 NODE_ENV=production
 PORT=5001
 ```
