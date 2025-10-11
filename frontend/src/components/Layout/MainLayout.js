@@ -28,12 +28,17 @@ function MainLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ 
-        background: '#001529', 
-        color: '#fff', 
+        background: '#fff', 
+        color: '#000', 
         fontSize: '20px',
         fontWeight: 'bold',
-        padding: '0 24px'
+        padding: '0 24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        borderBottom: '1px solid #f0f0f0'
       }}>
+        <img src="/logo.png" alt="Logo" style={{ height: '32px' }} />
         订单管理系统
       </Header>
       <Layout>
