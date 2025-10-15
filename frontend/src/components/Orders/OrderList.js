@@ -96,19 +96,20 @@ function OrderList() {
       title: '订单号',
       dataIndex: 'orderNumber',
       key: 'orderNumber',
-      fixed: 'left'
+      ellipsis: true
     },
     {
       title: '客户',
       dataIndex: 'customerName',
-      key: 'customerName'
+      key: 'customerName',
+      ellipsis: true
     },
     {
       title: '产品',
       dataIndex: 'items',
       key: 'items',
       render: (items) => (
-        <div>
+        <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
           {items.map((item, idx) => (
             <div key={idx}>
               {item.productName} x {item.quantity}
@@ -146,9 +147,8 @@ function OrderList() {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space wrap size="small">
           <Button
             type="link"
             icon={<EyeOutlined />}
@@ -197,7 +197,7 @@ function OrderList() {
         </Button>
       </div>
 
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Select
           placeholder="筛选订单状态"
           allowClear
@@ -227,7 +227,6 @@ function OrderList() {
         dataSource={orders}
         rowKey="_id"
         loading={loading}
-        scroll={{ x: 1000 }}
       />
 
       <Modal
