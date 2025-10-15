@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Select, InputNumber, Button, message, Card, Space } from 'antd';
+import { Form, Select, InputNumber, Button, message, Card, Space, Modal, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { orderAPI, customerAPI, productAPI } from '../../services/api';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 
 function OrderForm() {
-  const [form] = Form.useForm();
+  const [orderForm] = Form.useForm();
+  const [customerForm] = Form.useForm();
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [customerModalVisible, setCustomerModalVisible] = useState(false);
+  const [customerLoading, setCustomerLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,6 +30,27 @@ function OrderForm() {
       message.error('加载数据失败');
       setCustomers([]);
       setProducts([]);
+    }
+  };
+
+  const handleCustomerSubmit = async () => {
+    try {
+      const values = await customerForm.validateFields();
+      setCustomerLoading(true);
+      const response = await customerAPI.create(values);
+      const newCustomer = response.data;
+      message.success('客户创建成功');
+      setCustomers(prev => [newCustomer, ...prev]);
+      orderForm.setFieldsValue({ customerId: newCustomer._id });
+      setCustomerModalVisible(false);
+      customerForm.resetFields();
+    } catch (error) {
+      if (error?.errorFields) {
+        return;
+      }
+      message.error(error.response?.data?.error || '创建客户失败');
+    } finally {
+      setCustomerLoading(false);
     }
   };
 
@@ -49,7 +73,7 @@ function OrderForm() {
       
       <Card style={{ marginTop: 16, maxWidth: 800 }}>
         <Form
-          form={form}
+          form={orderForm}
           layout="vertical"
           onFinish={handleSubmit}
         >
@@ -58,17 +82,23 @@ function OrderForm() {
             label="客户"
             rules={[{ required: true, message: '请选择客户' }]}
           >
-            <Select
-              showSearch
-              placeholder="选择客户"
-              optionFilterProp="children"
-            >
-              {customers.map(c => (
-                <Select.Option key={c._id} value={c._id}>
-                  {c.name}
-                </Select.Option>
-              ))}
-            </Select>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Select
+                showSearch
+                placeholder="选择客户"
+                optionFilterProp="children"
+                style={{ flex: 1 }}
+              >
+                {customers.map(c => (
+                  <Select.Option key={c._id} value={c._id}>
+                    {c.name}
+                  </Select.Option>
+                ))}
+              </Select>
+              <Button type="dashed" icon={<PlusOutlined />} onClick={() => setCustomerModalVisible(true)}>
+                新增客户
+              </Button>
+            </div>
           </Form.Item>
 
           <Form.List
@@ -156,6 +186,33 @@ function OrderForm() {
           </Form.Item>
         </Form>
       </Card>
+
+      <Modal
+        title="新增客户"
+        open={customerModalVisible}
+        onCancel={() => {
+          setCustomerModalVisible(false);
+          customerForm.resetFields();
+        }}
+        onOk={() => handleCustomerSubmit()}
+        confirmLoading={customerLoading}
+      >
+        <Form form={customerForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="姓名"
+            rules={[{ required: true, message: '请输入姓名' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="phone" label="电话">
+            <Input />
+          </Form.Item>
+          <Form.Item name="email" label="邮箱">
+            <Input type="email" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
