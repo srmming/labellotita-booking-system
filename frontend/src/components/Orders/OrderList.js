@@ -96,18 +96,21 @@ function OrderList() {
       title: '订单号',
       dataIndex: 'orderNumber',
       key: 'orderNumber',
-      ellipsis: true
+      ellipsis: true,
+      width: 160
     },
     {
       title: '客户',
       dataIndex: 'customerName',
       key: 'customerName',
-      ellipsis: true
+      ellipsis: true,
+      width: 180
     },
     {
       title: '产品',
       dataIndex: 'items',
       key: 'items',
+      width: 240,
       render: (items) => (
         <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
           {items.map((item, idx) => (
@@ -122,6 +125,7 @@ function OrderList() {
       title: '订单状态',
       dataIndex: 'status',
       key: 'status',
+      width: 120,
       render: (status) => (
         <Tag color={ORDER_STATUS_COLORS[status]}>
           {ORDER_STATUS_LABELS[status]}
@@ -132,6 +136,7 @@ function OrderList() {
       title: '付款状态',
       dataIndex: 'paymentStatus',
       key: 'paymentStatus',
+      width: 140,
       render: (status) => (
         <Tag color={PAYMENT_STATUS_COLORS[status]}>
           {PAYMENT_STATUS_LABELS[status]}
@@ -142,11 +147,13 @@ function OrderList() {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 200,
       render: (date) => new Date(date).toLocaleString('zh-CN')
     },
     {
       title: '操作',
       key: 'action',
+      width: 220,
       render: (_, record) => (
         <Space wrap size="small">
           <Button
@@ -227,6 +234,8 @@ function OrderList() {
         dataSource={orders}
         rowKey="_id"
         loading={loading}
+        tableLayout="fixed"
+        scroll={{ x: 1000 }}
       />
 
       <Modal
