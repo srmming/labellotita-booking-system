@@ -77,32 +77,34 @@ function OrderForm() {
           layout="vertical"
           onFinish={handleSubmit}
         >
-          <Form.Item
-            name="customerId"
-            label="客户"
-            rules={[{ required: true, message: '请选择客户' }]}
-          >
-            <Select
-              showSearch
-              placeholder="选择客户"
-              optionFilterProp="children"
-              style={{ width: 'calc(100% - 120px)', minWidth: 200, display: 'inline-block' }}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+            <Form.Item
+              name="customerId"
+              label="客户"
+              rules={[{ required: true, message: '请选择客户' }]}
+              style={{ flex: '1 1 200px', minWidth: 200 }}
             >
-              {customers.map(c => (
-                <Select.Option key={c._id} value={c._id}>
-                  {c.name}
-                </Select.Option>
-              ))}
-            </Select>
+              <Select
+                showSearch
+                placeholder="选择客户"
+                optionFilterProp="children"
+                style={{ width: '100%' }}
+              >
+                {customers.map(c => (
+                  <Select.Option key={c._id} value={c._id}>
+                    {c.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
             <Button
               type="dashed"
               icon={<PlusOutlined />}
               onClick={() => setCustomerModalVisible(true)}
-              style={{ marginLeft: 8 }}
             >
               新增客户
             </Button>
-          </Form.Item>
+          </div>
 
           <Form.List
             name="items"
