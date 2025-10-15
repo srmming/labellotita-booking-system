@@ -82,23 +82,26 @@ function OrderForm() {
             label="客户"
             rules={[{ required: true, message: '请选择客户' }]}
           >
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Select
-                showSearch
-                placeholder="选择客户"
-                optionFilterProp="children"
-                style={{ flex: 1 }}
-              >
-                {customers.map(c => (
-                  <Select.Option key={c._id} value={c._id}>
-                    {c.name}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Button type="dashed" icon={<PlusOutlined />} onClick={() => setCustomerModalVisible(true)}>
-                新增客户
-              </Button>
-            </div>
+            <Select
+              showSearch
+              placeholder="选择客户"
+              optionFilterProp="children"
+              style={{ width: 'calc(100% - 120px)', minWidth: 200, display: 'inline-block' }}
+            >
+              {customers.map(c => (
+                <Select.Option key={c._id} value={c._id}>
+                  {c.name}
+                </Select.Option>
+              ))}
+            </Select>
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={() => setCustomerModalVisible(true)}
+              style={{ marginLeft: 8 }}
+            >
+              新增客户
+            </Button>
           </Form.Item>
 
           <Form.List
