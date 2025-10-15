@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Tag, Select, message } from 'antd';
-import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Tag, Select, message, Modal, Form, InputNumber, Popconfirm } from 'antd';
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { orderAPI } from '../../services/api';
 import {
@@ -14,6 +14,11 @@ function OrderList() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({});
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [editForm] = Form.useForm();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +35,59 @@ function OrderList() {
       setOrders([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openEditModal = (order) => {
+    setEditingOrder(order);
+    editForm.setFieldsValue({
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      totalAmount: typeof order.totalAmount === 'number' ? order.totalAmount : undefined
+    });
+    setEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    setEditingOrder(null);
+    editForm.resetFields();
+  };
+
+  const handleEditSubmit = async () => {
+    try {
+      const values = await editForm.validateFields();
+      const payload = { ...values };
+      if (payload.totalAmount === null || payload.totalAmount === '') {
+        delete payload.totalAmount;
+      }
+      if (!editingOrder?._id) {
+        return;
+      }
+      setEditSubmitting(true);
+      await orderAPI.update(editingOrder._id, payload);
+      message.success('订单更新成功');
+      closeEditModal();
+      loadOrders();
+    } catch (error) {
+      if (!error?.errorFields) {
+        message.error(error.response?.data?.error || '更新订单失败');
+      }
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (orderId) => {
+    try {
+      setDeleteLoadingId(orderId);
+      await orderAPI.delete(orderId);
+      message.success('订单已删除');
+      loadOrders();
+    } catch (error) {
+      message.error(error.response?.data?.error || '删除订单失败');
+    } finally {
+      setDeleteLoadingId(null);
     }
   };
 
@@ -98,6 +156,29 @@ function OrderList() {
           >
             查看详情
           </Button>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除该订单？"
+            description="删除后将无法恢复，请谨慎操作。"
+            okText="删除"
+            cancelText="取消"
+            onConfirm={() => handleDelete(record._id)}
+          >
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleteLoadingId === record._id}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       )
     }
@@ -148,9 +229,52 @@ function OrderList() {
         loading={loading}
         scroll={{ x: 1000 }}
       />
+
+      <Modal
+        title="编辑订单"
+        open={editModalVisible}
+        onCancel={closeEditModal}
+        onOk={handleEditSubmit}
+        confirmLoading={editSubmitting}
+        destroyOnClose
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="status"
+            label="订单状态"
+            rules={[{ required: true, message: '请选择订单状态' }]}
+          >
+            <Select placeholder="选择订单状态">
+              {Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => (
+                <Select.Option key={value} value={value}>
+                  {label}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="paymentStatus"
+            label="付款状态"
+            rules={[{ required: true, message: '请选择付款状态' }]}
+          >
+            <Select placeholder="选择付款状态">
+              {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
+                <Select.Option key={value} value={value}>
+                  {label}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="totalAmount"
+            label="订单金额"
+          >
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
 
 export default OrderList;
-
