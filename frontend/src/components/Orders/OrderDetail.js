@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -30,7 +30,6 @@ function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [shipments, setShipments] = useState([]);
   const [shippedQty, setShippedQty] = useState({});
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
 
@@ -43,13 +42,8 @@ function OrderDetail() {
     return value;
   };
 
-  useEffect(() => {
-    loadOrderDetail();
-  }, [id]);
-
-  const loadOrderDetail = async () => {
+  const loadOrderDetail = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await orderAPI.getById(id);
       const orderData = response.data.order;
       if (orderData && orderData.items) {
@@ -61,10 +55,12 @@ function OrderDetail() {
     } catch (error) {
       message.error('加载订单详情失败');
       setShipments([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadOrderDetail();
+  }, [loadOrderDetail]);
 
   const handleCreateShipment = async (values) => {
     try {

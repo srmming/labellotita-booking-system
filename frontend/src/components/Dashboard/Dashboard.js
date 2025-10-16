@@ -4,7 +4,6 @@ import {
   ShoppingOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  DollarOutlined,
   TruckOutlined
 } from '@ant-design/icons';
 import { orderAPI } from '../../services/api';
@@ -230,4 +229,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { Table, Button, Space, Tag, Select, message, Modal, Form, InputNumber, Popconfirm, DatePicker, Input } from 'antd';
 import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -22,24 +23,16 @@ function OrderList() {
   const [editForm] = Form.useForm();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
-    loadOrders();
-  }, [filters]);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       const response = await productAPI.getAll();
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Failed to load products');
     }
-  };
+  }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const response = await orderAPI.getAll(filters);
@@ -50,7 +43,15 @@ function OrderList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
 
   const openEditModal = (order) => {
     setEditingOrder(order);
@@ -58,7 +59,7 @@ function OrderList() {
       status: order.status,
       paymentStatus: order.paymentStatus,
       totalAmount: typeof order.totalAmount === 'number' ? order.totalAmount : undefined,
-      expectedShipDate: order.expectedShipDate ? new (require('antd').DatePicker.parseDate || window.moment)(order.expectedShipDate) : undefined,
+      expectedShipDate: order.expectedShipDate ? dayjs(order.expectedShipDate) : undefined,
       remarks: order.remarks
     });
     setEditModalVisible(true);
@@ -78,7 +79,7 @@ function OrderList() {
         delete payload.totalAmount;
       }
       if (payload.expectedShipDate) {
-        payload.expectedShipDate = payload.expectedShipDate.toDate ? payload.expectedShipDate.toDate() : new Date(payload.expectedShipDate);
+        payload.expectedShipDate = dayjs(payload.expectedShipDate).toISOString();
       }
       if (!editingOrder?._id) {
         return;
@@ -112,16 +113,19 @@ function OrderList() {
 
   const handleDateRangeChange = (dates) => {
     if (dates && dates.length === 2) {
-      setFilters({
-        ...filters,
-        expectedShipDateFrom: dates[0].format('YYYY-MM-DD'),
-        expectedShipDateTo: dates[1].format('YYYY-MM-DD')
-      });
+      const [start, end] = dates;
+      setFilters((prev) => ({
+        ...prev,
+        expectedShipDateFrom: dayjs(start).startOf('day').toISOString(),
+        expectedShipDateTo: dayjs(end).endOf('day').toISOString()
+      }));
     } else {
-      const newFilters = { ...filters };
-      delete newFilters.expectedShipDateFrom;
-      delete newFilters.expectedShipDateTo;
-      setFilters(newFilters);
+      setFilters((prev) => {
+        const next = { ...prev };
+        delete next.expectedShipDateFrom;
+        delete next.expectedShipDateTo;
+        return next;
+      });
     }
   };
 
