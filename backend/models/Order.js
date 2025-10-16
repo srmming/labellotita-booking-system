@@ -54,6 +54,12 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'producing', 'shipping', 'completed', 'cancelled'],
     default: 'pending'
+  },
+  expectedShipDate: {
+    type: Date
+  },
+  remarks: {
+    type: String
   }
 }, {
   timestamps: true
@@ -75,6 +81,7 @@ orderSchema.pre('save', async function(next) {
 // orderNumber 已通过 unique: true 自动创建索引，无需重复
 orderSchema.index({ customerId: 1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ expectedShipDate: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);
 

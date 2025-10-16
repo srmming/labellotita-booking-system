@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Table, Tag, message } from 'antd';
+import { Row, Col, Card, Statistic, Table, Tag, message, Alert } from 'antd';
 import {
   ShoppingOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  DollarOutlined
+  DollarOutlined,
+  TruckOutlined
 } from '@ant-design/icons';
 import { orderAPI } from '../../services/api';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../utils/constants';
@@ -15,9 +16,11 @@ function Dashboard() {
     pendingOrders: 0,
     shippingOrders: 0,
     completedOrders: 0,
-    totalRevenue: 0
+    totalRevenue: 0,
+    upcomingShipments: []
   });
   const [recentOrders, setRecentOrders] = useState([]);
+  const [upcomingShipments, setUpcomingShipments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,18 +40,31 @@ function Dashboard() {
         pendingOrders: 0,
         shippingOrders: 0,
         completedOrders: 0,
-        totalRevenue: 0
+        totalRevenue: 0,
+        upcomingShipments: []
       });
       setRecentOrders(Array.isArray(ordersRes.data) ? ordersRes.data.slice(0, 10) : []);
+      setUpcomingShipments(statsRes.data?.upcomingShipments || []);
     } catch (error) {
       message.error('加载数据失败');
       setRecentOrders([]);
+      setUpcomingShipments([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const columns = [
+  const calculateDaysUntilShip = (shipDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const ship = new Date(shipDate);
+    ship.setHours(0, 0, 0, 0);
+    const diff = ship - today;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days;
+  };
+
+  const recentColumns = [
     {
       title: '订单号',
       dataIndex: 'orderNumber',
@@ -80,6 +96,57 @@ function Dashboard() {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date) => new Date(date).toLocaleString('zh-CN')
+    }
+  ];
+
+  const upcomingColumns = [
+    {
+      title: '订单号',
+      dataIndex: 'orderNumber',
+      key: 'orderNumber'
+    },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      key: 'customerName'
+    },
+    {
+      title: '产品',
+      dataIndex: 'items',
+      key: 'items',
+      render: (items) => (
+        <div>
+          {items.map((item, idx) => (
+            <div key={idx}>{item.productName} x {item.quantity}</div>
+          ))}
+        </div>
+      )
+    },
+    {
+      title: '预计出货时间',
+      dataIndex: 'expectedShipDate',
+      key: 'expectedShipDate',
+      render: (date) => new Date(date).toLocaleDateString('zh-CN')
+    },
+    {
+      title: '距离出货',
+      dataIndex: 'expectedShipDate',
+      key: 'daysUntil',
+      render: (date) => {
+        const days = calculateDaysUntilShip(date);
+        const color = days <= 1 ? 'red' : days <= 3 ? 'orange' : 'blue';
+        return <Tag color={color}>{days} 天</Tag>;
+      }
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => (
+        <Tag color={ORDER_STATUS_COLORS[status]}>
+          {ORDER_STATUS_LABELS[status]}
+        </Tag>
+      )
     }
   ];
 
@@ -130,9 +197,28 @@ function Dashboard() {
         </Col>
       </Row>
 
+      <Card title={<><TruckOutlined /> 即将出货订单（7天内）</>} style={{ marginTop: 16, marginBottom: 24 }}>
+        {upcomingShipments.length === 0 ? (
+          <Alert
+            message="暂无即将出货的订单"
+            type="info"
+            showIcon
+          />
+        ) : (
+          <Table
+            columns={upcomingColumns}
+            dataSource={upcomingShipments}
+            rowKey="_id"
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 1000 }}
+          />
+        )}
+      </Card>
+
       <Card title="最近订单" style={{ marginTop: 16 }}>
         <Table
-          columns={columns}
+          columns={recentColumns}
           dataSource={recentOrders}
           rowKey="_id"
           loading={loading}

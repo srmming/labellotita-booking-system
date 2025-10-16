@@ -8,7 +8,7 @@ const Shipment = require('../models/Shipment');
 // Get all orders with filters
 router.get('/', async (req, res, next) => {
   try {
-    const { status, paymentStatus, startDate, endDate } = req.query;
+    const { status, paymentStatus, startDate, endDate, expectedShipDateFrom, expectedShipDateTo, productIds } = req.query;
     
     const filter = {};
     if (status) filter.status = status;
@@ -17,6 +17,23 @@ router.get('/', async (req, res, next) => {
       filter.createdAt = {};
       if (startDate) filter.createdAt.$gte = new Date(startDate);
       if (endDate) filter.createdAt.$lte = new Date(endDate);
+    }
+    
+    // Filter by expected ship date range
+    if (expectedShipDateFrom || expectedShipDateTo) {
+      filter.expectedShipDate = {};
+      if (expectedShipDateFrom) filter.expectedShipDate.$gte = new Date(expectedShipDateFrom);
+      if (expectedShipDateTo) {
+        const toDate = new Date(expectedShipDateTo);
+        toDate.setHours(23, 59, 59, 999);
+        filter.expectedShipDate.$lte = toDate;
+      }
+    }
+    
+    // Filter by product IDs (multi-select)
+    if (productIds) {
+      const ids = Array.isArray(productIds) ? productIds : [productIds];
+      filter['items.productId'] = { $in: ids };
     }
     
     const orders = await Order.find(filter)
@@ -39,12 +56,23 @@ router.get('/stats', async (req, res, next) => {
     const orders = await Order.find();
     const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     
+    // Get orders that need to ship within 7 days
+    const today = new Date();
+    const sevenDaysLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const upcomingShipments = await Order.find({
+      expectedShipDate: {
+        $gte: today,
+        $lte: sevenDaysLater
+      }
+    }).sort({ expectedShipDate: 1 });
+    
     res.json({
       totalOrders,
       pendingOrders,
       shippingOrders,
       completedOrders,
-      totalRevenue
+      totalRevenue,
+      upcomingShipments
     });
   } catch (err) {
     next(err);
@@ -79,7 +107,7 @@ router.get('/:id', async (req, res, next) => {
 // Create order
 router.post('/', async (req, res, next) => {
   try {
-    const { customerId, items, paymentStatus, totalAmount } = req.body;
+    const { customerId, items, paymentStatus, totalAmount, expectedShipDate, remarks } = req.body;
     
     // Get customer info
     const customer = await Customer.findById(customerId);
@@ -118,7 +146,9 @@ router.post('/', async (req, res, next) => {
       items: orderItems,
       paymentStatus: paymentStatus || 'unpaid',
       totalAmount: totalAmount || 0,
-      status: 'pending'
+      status: 'pending',
+      expectedShipDate: expectedShipDate ? new Date(expectedShipDate) : undefined,
+      remarks: remarks
     });
     
     await order.save();
@@ -131,12 +161,14 @@ router.post('/', async (req, res, next) => {
 // Update order
 router.put('/:id', async (req, res, next) => {
   try {
-    const { paymentStatus, status, totalAmount } = req.body;
+    const { paymentStatus, status, totalAmount, expectedShipDate, remarks } = req.body;
     
     const updateData = {};
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
     if (status) updateData.status = status;
     if (totalAmount !== undefined) updateData.totalAmount = totalAmount;
+    if (expectedShipDate !== undefined) updateData.expectedShipDate = expectedShipDate ? new Date(expectedShipDate) : null;
+    if (remarks !== undefined) updateData.remarks = remarks;
     
     const order = await Order.findByIdAndUpdate(
       req.params.id,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Select, InputNumber, Button, message, Card, Space, Modal, Input } from 'antd';
+import { Form, Select, InputNumber, Button, message, Card, Space, Modal, Input, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { orderAPI, customerAPI, productAPI } from '../../services/api';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -177,6 +177,14 @@ function OrderForm() {
 
           <Form.Item name="totalAmount" label="订单金额（可选）">
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item name="expectedShipDate" label="预计出货时间（可选）">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item name="remarks" label="备注（可选）">
+            <Input.TextArea rows={3} placeholder="输入订单备注信息" />
           </Form.Item>
 
           <Form.Item>

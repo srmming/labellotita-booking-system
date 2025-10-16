@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Tag, Select, message, Modal, Form, InputNumber, Popconfirm } from 'antd';
+import { Table, Button, Space, Tag, Select, message, Modal, Form, InputNumber, Popconfirm, DatePicker, Input } from 'antd';
 import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { orderAPI } from '../../services/api';
+import { orderAPI, productAPI } from '../../services/api';
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
@@ -18,12 +18,26 @@ function OrderList() {
   const [editingOrder, setEditingOrder] = useState(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [products, setProducts] = useState([]);
   const [editForm] = Form.useForm();
   const navigate = useNavigate();
 
   useEffect(() => {
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
     loadOrders();
   }, [filters]);
+
+  const loadProducts = async () => {
+    try {
+      const response = await productAPI.getAll();
+      setProducts(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Failed to load products');
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -43,7 +57,9 @@ function OrderList() {
     editForm.setFieldsValue({
       status: order.status,
       paymentStatus: order.paymentStatus,
-      totalAmount: typeof order.totalAmount === 'number' ? order.totalAmount : undefined
+      totalAmount: typeof order.totalAmount === 'number' ? order.totalAmount : undefined,
+      expectedShipDate: order.expectedShipDate ? new (require('antd').DatePicker.parseDate || window.moment)(order.expectedShipDate) : undefined,
+      remarks: order.remarks
     });
     setEditModalVisible(true);
   };
@@ -60,6 +76,9 @@ function OrderList() {
       const payload = { ...values };
       if (payload.totalAmount === null || payload.totalAmount === '') {
         delete payload.totalAmount;
+      }
+      if (payload.expectedShipDate) {
+        payload.expectedShipDate = payload.expectedShipDate.toDate ? payload.expectedShipDate.toDate() : new Date(payload.expectedShipDate);
       }
       if (!editingOrder?._id) {
         return;
@@ -88,6 +107,34 @@ function OrderList() {
       message.error(error.response?.data?.error || '删除订单失败');
     } finally {
       setDeleteLoadingId(null);
+    }
+  };
+
+  const handleDateRangeChange = (dates) => {
+    if (dates && dates.length === 2) {
+      setFilters({
+        ...filters,
+        expectedShipDateFrom: dates[0].format('YYYY-MM-DD'),
+        expectedShipDateTo: dates[1].format('YYYY-MM-DD')
+      });
+    } else {
+      const newFilters = { ...filters };
+      delete newFilters.expectedShipDateFrom;
+      delete newFilters.expectedShipDateTo;
+      setFilters(newFilters);
+    }
+  };
+
+  const handleProductFilterChange = (selectedIds) => {
+    if (selectedIds && selectedIds.length > 0) {
+      setFilters({
+        ...filters,
+        productIds: selectedIds
+      });
+    } else {
+      const newFilters = { ...filters };
+      delete newFilters.productIds;
+      setFilters(newFilters);
     }
   };
 
@@ -141,6 +188,25 @@ function OrderList() {
         <Tag color={PAYMENT_STATUS_COLORS[status]}>
           {PAYMENT_STATUS_LABELS[status]}
         </Tag>
+      )
+    },
+    {
+      title: '预计出货时间',
+      dataIndex: 'expectedShipDate',
+      key: 'expectedShipDate',
+      width: 160,
+      render: (date) => date ? new Date(date).toLocaleDateString('zh-CN') : '-'
+    },
+    {
+      title: '备注',
+      dataIndex: 'remarks',
+      key: 'remarks',
+      width: 200,
+      ellipsis: false,
+      render: (text) => (
+        <div style={{ whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: 200 }}>
+          {text || '-'}
+        </div>
       )
     },
     {
@@ -227,6 +293,25 @@ function OrderList() {
           <Select.Option value="partial">部分付款</Select.Option>
           <Select.Option value="paid">已付款</Select.Option>
         </Select>
+
+        <DatePicker.RangePicker
+          placeholder={['预计出货日期从', '预计出货日期到']}
+          onChange={handleDateRangeChange}
+        />
+
+        <Select
+          mode="multiple"
+          placeholder="筛选产品"
+          allowClear
+          style={{ width: 200 }}
+          onChange={handleProductFilterChange}
+        >
+          {products.map(p => (
+            <Select.Option key={p._id} value={p._id}>
+              {p.name}
+            </Select.Option>
+          ))}
+        </Select>
       </Space>
 
       <Table
@@ -235,7 +320,7 @@ function OrderList() {
         rowKey="_id"
         loading={loading}
         tableLayout="fixed"
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1200 }}
       />
 
       <Modal
@@ -278,6 +363,18 @@ function OrderList() {
             label="订单金额"
           >
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="expectedShipDate"
+            label="预计出货时间"
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="remarks"
+            label="备注"
+          >
+            <Input.TextArea rows={3} placeholder="输入订单备注信息" />
           </Form.Item>
         </Form>
       </Modal>
