@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const InventoryAdjustment = require('../models/InventoryAdjustment');
-const mongoose = require('mongoose');
 
 // Get all products
 router.get('/', async (req, res, next) => {
@@ -76,31 +75,77 @@ router.post('/', async (req, res, next) => {
 // Update product
 router.put('/:id', async (req, res, next) => {
   try {
-    const { type, components } = req.body;
-    
-    // Same validations as create
-    if (type === 'combo' && components) {
-      for (let comp of components) {
-        const baseProduct = await Product.findById(comp.productId);
-        if (!baseProduct || baseProduct.type !== 'base') {
-          return res.status(400).json({ 
-            error: `Invalid component: ${comp.productId}` 
-          });
-        }
-        comp.productName = baseProduct.name;
-      }
-    }
-    
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
+    const product = await Product.findById(req.params.id);
+
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    
+
+    const originalName = product.name;
+    const updateData = { ...req.body };
+    const incomingType = updateData.type || product.type;
+
+    const hasComponentsInPayload = Object.prototype.hasOwnProperty.call(updateData, 'components');
+    let processedComponents = null;
+
+    if (incomingType === 'combo') {
+      const componentsToValidate = hasComponentsInPayload ? updateData.components : product.components;
+      if (!componentsToValidate || componentsToValidate.length === 0) {
+        return res.status(400).json({ error: 'Combo products must have components' });
+      }
+
+      if (hasComponentsInPayload) {
+        processedComponents = [];
+        for (const comp of updateData.components) {
+          const baseProduct = await Product.findById(comp.productId);
+          if (!baseProduct || baseProduct.type !== 'base') {
+            return res.status(400).json({
+              error: `Invalid component: ${comp.productId}`
+            });
+          }
+
+          processedComponents.push({
+            productId: comp.productId,
+            productName: baseProduct.name,
+            quantity: comp.quantity
+          });
+        }
+      }
+    }
+
+    if (incomingType === 'base') {
+      const componentsToValidate = hasComponentsInPayload ? updateData.components : product.components;
+      if (componentsToValidate && componentsToValidate.length > 0) {
+        return res.status(400).json({ error: 'Base products cannot have components' });
+      }
+    }
+
+    delete updateData.components;
+    product.set(updateData);
+
+    if (incomingType === 'base') {
+      product.components = [];
+    } else if (processedComponents) {
+      product.components = processedComponents;
+    }
+
+    await product.save();
+
+    if (product.type === 'base' && originalName !== product.name) {
+      await Product.updateMany(
+        { type: 'combo', 'components.productId': product._id },
+        { $set: { 'components.$[component].productName': product.name } },
+        { arrayFilters: [{ 'component.productId': product._id }] }
+      );
+
+      await InventoryAdjustment.updateMany(
+        { productId: product._id },
+        { $set: { productName: product.name } }
+      );
+    }
+
+    await product.populate('components.productId', 'name type inventory');
+
     res.json(product);
   } catch (err) {
     next(err);
@@ -145,63 +190,68 @@ router.delete('/:id', async (req, res, next) => {
 
 // Adjust inventory (增加/减少库存)
 router.post('/:id/adjust-inventory', async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     const { type, quantity, reason } = req.body;
-    
-    if (!type || !quantity || !reason) {
+
+    if (!type || quantity === undefined || !reason) {
       return res.status(400).json({ error: '请提供调整类型、数量和原因' });
     }
-    
+
     if (!['increase', 'decrease'].includes(type)) {
       return res.status(400).json({ error: '调整类型必须是 increase 或 decrease' });
     }
-    
-    const product = await Product.findById(req.params.id).session(session);
+
+    const parsedQuantity = Number(quantity);
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      return res.status(400).json({ error: '调整数量必须是大于 0 的数字' });
+    }
+
+    const product = await Product.findById(req.params.id);
     if (!product) {
-      throw new Error('Product not found');
+      return res.status(404).json({ error: 'Product not found' });
     }
-    
+
     if (product.type !== 'base') {
-      throw new Error('只能调整基础产品的库存');
+      return res.status(400).json({ error: '只能调整基础产品的库存' });
     }
-    
+
     const beforeQuantity = product.inventory.current;
-    const adjustAmount = type === 'increase' ? quantity : -quantity;
+    const adjustAmount = type === 'increase' ? parsedQuantity : -parsedQuantity;
     const afterQuantity = beforeQuantity + adjustAmount;
-    
+
     if (afterQuantity < 0) {
-      throw new Error(`库存不足，无法减少 ${quantity}。当前库存: ${beforeQuantity}`);
+      return res.status(400).json({
+        error: `库存不足，无法减少 ${parsedQuantity}。当前库存: ${beforeQuantity}`
+      });
     }
-    
-    // 更新库存
+
     product.inventory.current = afterQuantity;
-    await product.save({ session });
-    
-    // 创建调整记录
-    await InventoryAdjustment.create([{
+    await product.save();
+
+    const adjustment = await InventoryAdjustment.create({
       productId: product._id,
       productName: product.name,
       type,
-      quantity,
+      quantity: parsedQuantity,
       reason,
       beforeQuantity,
       afterQuantity
-    }], { session });
-    
-    await session.commitTransaction();
-    res.json({ 
-      product, 
-      adjustment: { type, quantity, reason, beforeQuantity, afterQuantity }
     });
-    
+
+    res.json({
+      product,
+      adjustment: {
+        type,
+        quantity: parsedQuantity,
+        reason,
+        beforeQuantity,
+        afterQuantity,
+        createdAt: adjustment.createdAt,
+        _id: adjustment._id
+      }
+    });
   } catch (err) {
-    await session.abortTransaction();
     next(err);
-  } finally {
-    session.endSession();
   }
 });
 
