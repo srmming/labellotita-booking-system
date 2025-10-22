@@ -15,7 +15,7 @@ import {
   Space,
   Progress
 } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { orderAPI, shipmentAPI } from '../../services/api';
 import {
   ORDER_STATUS_LABELS,
@@ -24,14 +24,20 @@ import {
   PAYMENT_STATUS_COLORS
 } from '../../utils/constants';
 
+const OPERATOR_STORAGE_KEY = 'orderQuantityOperator';
+
 function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [shipments, setShipments] = useState([]);
   const [shippedQty, setShippedQty] = useState({});
-  const [modalVisible, setModalVisible] = useState(false);
-  const [form] = Form.useForm();
+  const [activities, setActivities] = useState([]);
+  const [shipmentModalVisible, setShipmentModalVisible] = useState(false);
+  const [quantityModalVisible, setQuantityModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [shipmentForm] = Form.useForm();
+  const [quantityForm] = Form.useForm();
 
   const getProductKey = (value) => {
     if (!value) return value;
@@ -52,9 +58,11 @@ function OrderDetail() {
       setOrder(orderData);
       setShipments(Array.isArray(response.data.shipments) ? response.data.shipments : []);
       setShippedQty(response.data.shippedQty || {});
+      setActivities(Array.isArray(response.data.activities) ? response.data.activities : []);
     } catch (error) {
       message.error('加载订单详情失败');
       setShipments([]);
+      setActivities([]);
     }
   }, [id]);
 
@@ -75,11 +83,47 @@ function OrderDetail() {
         ...values
       });
       message.success('出货成功');
-      setModalVisible(false);
-      form.resetFields();
+      setShipmentModalVisible(false);
+      shipmentForm.resetFields();
       loadOrderDetail();
     } catch (error) {
       message.error(error.response?.data?.error || '出货失败');
+    }
+  };
+
+  const handleOpenQuantityModal = (item) => {
+    setEditingItem(item);
+    setQuantityModalVisible(true);
+    const storedOperator = typeof window !== 'undefined'
+      ? window.localStorage.getItem(OPERATOR_STORAGE_KEY)
+      : '';
+    quantityForm.setFieldsValue({
+      quantity: item.quantity,
+      changedBy: storedOperator || '',
+      note: ''
+    });
+  };
+
+  const handleCloseQuantityModal = () => {
+    setQuantityModalVisible(false);
+    setEditingItem(null);
+    quantityForm.resetFields();
+  };
+
+  const handleUpdateQuantity = async (values) => {
+    if (!editingItem || !order) {
+      return;
+    }
+    try {
+      await orderAPI.updateItemQuantity(order._id, editingItem._id || editingItem.productId, values);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(OPERATOR_STORAGE_KEY, values.changedBy);
+      }
+      message.success('订单数量已更新');
+      handleCloseQuantityModal();
+      loadOrderDetail();
+    } catch (error) {
+      message.error(error.response?.data?.error || '更新订单数量失败');
     }
   };
 
@@ -107,7 +151,7 @@ function OrderDetail() {
       key: 'remaining',
       render: (_, record) => {
         const shipped = shippedQty[getProductKey(record.productId)] || 0;
-        return record.quantity - shipped;
+        return Math.max(record.quantity - shipped, 0);
       }
     },
     {
@@ -115,9 +159,24 @@ function OrderDetail() {
       key: 'progress',
       render: (_, record) => {
         const shipped = shippedQty[getProductKey(record.productId)] || 0;
-        const percent = Math.round((shipped / record.quantity) * 100);
+        const base = record.quantity || 0;
+        const percent = base > 0 ? Math.min(Math.round((shipped / base) * 100), 100) : 0;
         return <Progress percent={percent} />;
       }
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, record) => (
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          onClick={() => handleOpenQuantityModal(record)}
+          disabled={order?.status === 'cancelled'}
+        >
+          调整数量
+        </Button>
+      )
     }
   ];
 
@@ -148,6 +207,59 @@ function OrderDetail() {
       key: 'notes'
     }
   ];
+
+  const activityColumns = [
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (value) => new Date(value).toLocaleString('zh-CN')
+    },
+    {
+      title: '产品',
+      dataIndex: 'productName',
+      key: 'productName',
+      render: (text) => text || '-'
+    },
+    {
+      title: '调整前',
+      dataIndex: 'previousQuantity',
+      key: 'previousQuantity'
+    },
+    {
+      title: '调整后',
+      dataIndex: 'newQuantity',
+      key: 'newQuantity'
+    },
+    {
+      title: '变动',
+      dataIndex: 'delta',
+      key: 'delta',
+      render: (value) => {
+        if (typeof value !== 'number') {
+          return '-';
+        }
+        const display = value > 0 ? `+${value}` : `${value}`;
+        const color = value > 0 ? '#389e0d' : value < 0 ? '#cf1322' : 'inherit';
+        return <span style={{ color }}>{display}</span>;
+      }
+    },
+    {
+      title: '操作人',
+      dataIndex: 'changedBy',
+      key: 'changedBy'
+    },
+    {
+      title: '备注',
+      dataIndex: 'note',
+      key: 'note',
+      render: (text) => text || '-'
+    }
+  ];
+
+  const shippedForEditingItem = editingItem
+    ? shippedQty[getProductKey(editingItem.productId)] || 0
+    : 0;
 
   if (!order) return <div>加载中...</div>;
 
@@ -184,24 +296,24 @@ function OrderDetail() {
         </Descriptions>
       </Card>
 
-      <Card
-        title="订单产品"
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModalVisible(true)}
-            disabled={order.status === 'completed' || order.status === 'cancelled'}
-          >
-            新增出货
-          </Button>
-        }
+        <Card
+          title="订单产品"
+          extra={
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setShipmentModalVisible(true)}
+              disabled={order.status === 'completed' || order.status === 'cancelled'}
+            >
+              新增出货
+            </Button>
+          }
         style={{ marginBottom: 16 }}
       >
         <Table
           columns={orderItemColumns}
           dataSource={order.items}
-          rowKey={(record) => getProductKey(record.productId)}
+          rowKey={(record) => record._id || getProductKey(record.productId)}
           pagination={false}
         />
       </Card>
@@ -215,16 +327,26 @@ function OrderDetail() {
         />
       </Card>
 
+      <Card title="操作日志" style={{ marginTop: 16 }}>
+        <Table
+          columns={activityColumns}
+          dataSource={activities}
+          rowKey="_id"
+          pagination={false}
+          locale={{ emptyText: '暂无操作记录' }}
+        />
+      </Card>
+
       <Modal
         title="新增出货"
-        open={modalVisible}
-        onOk={() => form.submit()}
+        open={shipmentModalVisible}
+        onOk={() => shipmentForm.submit()}
         onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
+          setShipmentModalVisible(false);
+          shipmentForm.resetFields();
         }}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreateShipment}>
+        <Form form={shipmentForm} layout="vertical" onFinish={handleCreateShipment}>
           <Form.List
             name="shippedItems"
             rules={[
@@ -240,7 +362,7 @@ function OrderDetail() {
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => {
-                  const listValues = form.getFieldValue('shippedItems') || [];
+                  const listValues = shipmentForm.getFieldValue('shippedItems') || [];
                   const selectedIds = listValues
                     .filter((_, idx) => idx !== name)
                     .map(item => getProductKey(item?.productId))
@@ -302,6 +424,38 @@ function OrderDetail() {
 
           <Form.Item name="notes" label="备注">
             <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editingItem ? `调整数量 - ${editingItem.productName}` : '调整数量'}
+        open={quantityModalVisible}
+        onOk={() => quantityForm.submit()}
+        onCancel={handleCloseQuantityModal}
+        destroyOnClose
+      >
+        <Form form={quantityForm} layout="vertical" onFinish={handleUpdateQuantity}>
+          <Form.Item
+            name="quantity"
+            label="新数量"
+            rules={[{ required: true, message: '请输入新的订单数量' }]}
+            extra={editingItem ? `已出货：${shippedForEditingItem}，当前数量：${editingItem.quantity}` : undefined}
+          >
+            <InputNumber
+              min={Math.max(shippedForEditingItem || 0, 1)}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="changedBy"
+            label="操作人"
+            rules={[{ required: true, message: '请输入操作人' }]}
+          >
+            <Input placeholder="请输入操作人姓名" />
+          </Form.Item>
+          <Form.Item name="note" label="备注">
+            <Input.TextArea rows={3} placeholder="记录说明（可选）" />
           </Form.Item>
         </Form>
       </Modal>
