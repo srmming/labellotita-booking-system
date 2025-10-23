@@ -4,6 +4,8 @@ const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
 const Shipment = require('../models/Shipment');
+const OrderActivity = require('../models/OrderActivity');
+const { calculateShippedQuantities, updateOrderStatus } = require('../utils/orderStatus');
 
 // Get all orders with filters
 router.get('/', async (req, res, next) => {
@@ -88,6 +90,7 @@ router.get('/:id', async (req, res, next) => {
     }
     
     const shipments = await Shipment.find({ orderId: req.params.id }).sort({ shippedAt: -1 });
+    const activities = await OrderActivity.find({ orderId: req.params.id }).sort({ createdAt: -1 });
     
     // Calculate shipped quantities
     const shippedQty = {};
@@ -98,7 +101,7 @@ router.get('/:id', async (req, res, next) => {
       });
     });
     
-    res.json({ order, shipments, shippedQty });
+    res.json({ order, shipments, shippedQty, activities });
   } catch (err) {
     next(err);
   }
@@ -153,6 +156,76 @@ router.post('/', async (req, res, next) => {
     
     await order.save();
     res.status(201).json(order);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Update order item quantity
+router.patch('/:id/items/:itemId/quantity', async (req, res, next) => {
+  try {
+    const { quantity, changedBy, note } = req.body || {};
+
+    const parsedQuantity = Number(quantity);
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1) {
+      return res.status(400).json({ error: '订单数量必须是大于 0 的整数' });
+    }
+
+    const operator = typeof changedBy === 'string' ? changedBy.trim() : '';
+    if (!operator) {
+      return res.status(400).json({ error: '请填写操作人' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const item = order.items.id(req.params.itemId);
+    if (!item) {
+      return res.status(404).json({ error: 'Order item not found' });
+    }
+
+    if (item.quantity === parsedQuantity) {
+      return res.status(400).json({ error: '新数量与当前数量相同，无需更新' });
+    }
+
+    const shippedQty = await calculateShippedQuantities(order._id);
+    const shippedForItem = shippedQty[item.productId.toString()] || 0;
+
+    if (parsedQuantity < shippedForItem) {
+      return res.status(400).json({
+        error: `新数量不能小于已出货数量 ${shippedForItem}`
+      });
+    }
+
+    const previousQuantity = item.quantity;
+    item.quantity = parsedQuantity;
+
+    await order.save();
+    await updateOrderStatus(order);
+
+    const activity = await OrderActivity.create({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      type: 'ITEM_QUANTITY_UPDATED',
+      productId: item.productId,
+      productName: item.productName,
+      previousQuantity,
+      newQuantity: parsedQuantity,
+      delta: parsedQuantity - previousQuantity,
+      changedBy: operator,
+      note: typeof note === 'string' && note.trim() ? note.trim() : undefined
+    });
+
+    const updatedOrder = await Order.findById(order._id);
+    const updatedShippedQty = await calculateShippedQuantities(order._id);
+
+    res.json({
+      order: updatedOrder,
+      shippedQty: updatedShippedQty,
+      activity
+    });
   } catch (err) {
     next(err);
   }

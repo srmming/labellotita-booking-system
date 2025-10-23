@@ -46,6 +46,7 @@ export const orderAPI = {
   getById: (id) => api.get(`/orders/${id}`),
   create: (data) => api.post('/orders', data),
   update: (id, data) => api.put(`/orders/${id}`, data),
+  updateItemQuantity: (orderId, itemId, data) => api.patch(`/orders/${orderId}/items/${itemId}/quantity`, data),
   delete: (id) => api.delete(`/orders/${id}`)
 };
 
