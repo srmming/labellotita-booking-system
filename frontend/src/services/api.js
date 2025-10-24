@@ -50,11 +50,29 @@ export const orderAPI = {
   delete: (id) => api.delete(`/orders/${id}`)
 };
 
+// Stock Order APIs
+export const stockOrderAPI = {
+  getAll: (filters) => api.get('/stock-orders', { params: filters }),
+  getStats: () => api.get('/stock-orders/stats'),
+  getById: (id) => api.get(`/stock-orders/${id}`),
+  create: (data) => api.post('/stock-orders', data),
+  update: (id, data) => api.put(`/stock-orders/${id}`, data),
+  updateItemQuantity: (orderId, itemId, data) => api.patch(`/stock-orders/${orderId}/items/${itemId}/quantity`, data),
+  delete: (id) => api.delete(`/stock-orders/${id}`)
+};
+
 // Shipment APIs
 export const shipmentAPI = {
   getAll: (orderId) => api.get('/shipments', { params: { orderId } }),
   getById: (id) => api.get(`/shipments/${id}`),
   create: (data) => api.post('/shipments', data)
+};
+
+// Stock Shipment APIs
+export const stockShipmentAPI = {
+  getAll: (stockOrderId) => api.get('/stock-shipments', { params: { stockOrderId } }),
+  getById: (id) => api.get(`/stock-shipments/${id}`),
+  create: (data) => api.post('/stock-shipments', data)
 };
 
 // Production APIs
