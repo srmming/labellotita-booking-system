@@ -25,6 +25,8 @@ app.use('/api/customers', require('./routes/customers'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/shipments', require('./routes/shipments'));
+app.use('/api/stock-orders', require('./routes/stockOrders'));
+app.use('/api/stock-shipments', require('./routes/stockShipments'));
 app.use('/api/production', require('./routes/production'));
 
 // Error Handler

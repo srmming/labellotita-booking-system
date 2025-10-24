@@ -14,6 +14,7 @@ const { Header, Content, Sider } = Layout;
 const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '订单概览' },
   { key: '/orders', icon: <ShoppingOutlined />, label: '订单管理' },
+  { key: '/stock-orders', icon: <ShoppingOutlined />, label: '备货订单' },
   { key: '/products', icon: <AppstoreOutlined />, label: '产品管理' },
   { key: '/production', icon: <ToolOutlined />, label: '生产计划' },
   { key: '/customers', icon: <TeamOutlined />, label: '客户管理' }

@@ -9,6 +9,9 @@ import ProductList from './components/Products/ProductList';
 import OrderList from './components/Orders/OrderList';
 import OrderForm from './components/Orders/OrderForm';
 import OrderDetail from './components/Orders/OrderDetail';
+import StockOrderList from './components/StockOrders/StockOrderList';
+import StockOrderForm from './components/StockOrders/StockOrderForm';
+import StockOrderDetail from './components/StockOrders/StockOrderDetail';
 import ProductionPlan from './components/Production/ProductionPlan';
 
 function App() {
@@ -25,6 +28,10 @@ function App() {
             <Route path="orders/new" element={<OrderForm />} />
             <Route path="orders/:id" element={<OrderDetail />} />
             <Route path="orders/:id/edit" element={<OrderForm />} />
+            <Route path="stock-orders" element={<StockOrderList />} />
+            <Route path="stock-orders/new" element={<StockOrderForm />} />
+            <Route path="stock-orders/:id" element={<StockOrderDetail />} />
+            <Route path="stock-orders/:id/edit" element={<StockOrderForm />} />
             <Route path="production" element={<ProductionPlan />} />
           </Route>
         </Routes>
