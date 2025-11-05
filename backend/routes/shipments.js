@@ -54,6 +54,46 @@ function expandComboProducts(order, shippedItems) {
 router.post('/', async (req, res, next) => {
   const useTransaction = canUseTransactions();
   let session = null;
+  const appliedInventoryChanges = [];
+  let createdShipment = null;
+
+  const revertInventoryAdjustments = async () => {
+    if (appliedInventoryChanges.length === 0) {
+      return;
+    }
+
+    const aggregated = appliedInventoryChanges.reduce((acc, change) => {
+      const key = change.productId.toString();
+      acc[key] = (acc[key] || 0) + change.quantity;
+      return acc;
+    }, {});
+
+    try {
+      await Promise.all(
+        Object.entries(aggregated).map(([productId, quantity]) =>
+          Product.updateOne(
+            { _id: productId },
+            { $inc: { 'inventory.current': quantity } }
+          )
+        )
+      );
+    } catch (rollbackErr) {
+      console.error('Failed to rollback inventory adjustments:', rollbackErr);
+    }
+  };
+
+  const removeCreatedShipment = async () => {
+    if (!createdShipment?._id) {
+      return;
+    }
+
+    try {
+      await Shipment.deleteOne({ _id: createdShipment._id });
+    } catch (cleanupErr) {
+      console.error('Failed to cleanup dangling shipment record:', cleanupErr);
+    }
+  };
+
   if (useTransaction) {
     session = await mongoose.startSession();
     session.startTransaction();
@@ -140,8 +180,13 @@ router.post('/', async (req, res, next) => {
           `Required: ${change.quantity}, Available: ${product?.inventory?.current || 0}`
         );
       }
+
+      appliedInventoryChanges.push({
+        productId: change.productId,
+        quantity: change.quantity
+      });
     }
-    
+
     // 6. Create shipment record
     const shipment = new Shipment({
       orderId,
@@ -154,10 +199,11 @@ router.post('/', async (req, res, next) => {
     } else {
       await shipment.save();
     }
-    
+    createdShipment = shipment;
+
     // 7. Update order status
     await updateOrderStatus(order, session);
-    
+
     if (session) {
       await session.commitTransaction();
     }
@@ -166,6 +212,9 @@ router.post('/', async (req, res, next) => {
   } catch (err) {
     if (session) {
       await session.abortTransaction();
+    } else {
+      await revertInventoryAdjustments();
+      await removeCreatedShipment();
     }
     next(err);
   } finally {
