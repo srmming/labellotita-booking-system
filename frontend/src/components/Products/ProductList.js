@@ -52,6 +52,7 @@ function ProductList() {
   const handleAdd = () => {
     setEditingProduct(null);
     form.resetFields();
+    form.setFieldsValue({ annualSalesTarget: 0 });
     setModalVisible(true);
   };
 
@@ -59,6 +60,7 @@ function ProductList() {
     setEditingProduct(product);
     form.setFieldsValue({
       ...product,
+      annualSalesTarget: product.annualSalesTarget ?? 0,
       components: product.components?.map(c => ({
         productId: c.productId._id || c.productId,
         quantity: c.quantity
@@ -80,7 +82,11 @@ function ProductList() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      
+
+      if (values.type === 'base') {
+        delete values.annualSalesTarget;
+      }
+
       if (editingProduct) {
         await productAPI.update(editingProduct._id, values);
         message.success('更新成功');
@@ -159,6 +165,12 @@ function ProductList() {
           {PRODUCT_TYPE_LABELS[type]}
         </Tag>
       )
+    },
+    {
+      title: '年度销售目标',
+      dataIndex: 'annualSalesTarget',
+      key: 'annualSalesTarget',
+      render: (value) => value ?? 0
     },
     {
       title: '组件配置',
@@ -375,40 +387,50 @@ function ProductList() {
           )}
 
           {productType === 'combo' && (
-            <Form.List name="components">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(field => (
-                    <Space key={field.key} style={{ display: 'flex', marginBottom: 8 }}>
-                      <Form.Item
-                        {...field}
-                        name={[field.name, 'productId']}
-                        rules={[{ required: true, message: '请选择基础产品' }]}
-                      >
-                        <Select placeholder="选择基础产品" style={{ width: 200 }}>
-                          {baseProducts.map(p => (
-                            <Select.Option key={p._id} value={p._id}>
-                              {p.name}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                      <Form.Item
-                        {...field}
-                        name={[field.name, 'quantity']}
-                        rules={[{ required: true, message: '请输入数量' }]}
-                      >
-                        <InputNumber min={1} placeholder="数量" />
-                      </Form.Item>
-                      <Button onClick={() => remove(field.name)}>删除</Button>
-                    </Space>
-                  ))}
-                  <Button type="dashed" onClick={() => add()} block>
-                    添加组件
-                  </Button>
-                </>
-              )}
-            </Form.List>
+            <>
+              <Form.Item
+                name="annualSalesTarget"
+                label="年度销售目标（套）"
+                initialValue={0}
+                rules={[{ required: true, message: '请输入年度销售目标' }]}
+              >
+                <InputNumber min={0} style={{ width: '100%' }} placeholder="如：500" />
+              </Form.Item>
+              <Form.List name="components">
+                {(fields, { add, remove }) => (
+                  <>
+                    {fields.map(field => (
+                      <Space key={field.key} style={{ display: 'flex', marginBottom: 8 }}>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'productId']}
+                          rules={[{ required: true, message: '请选择基础产品' }]}
+                        >
+                          <Select placeholder="选择基础产品" style={{ width: 200 }}>
+                            {baseProducts.map(p => (
+                              <Select.Option key={p._id} value={p._id}>
+                                {p.name}
+                              </Select.Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'quantity']}
+                          rules={[{ required: true, message: '请输入数量' }]}
+                        >
+                          <InputNumber min={1} placeholder="数量" />
+                        </Form.Item>
+                        <Button onClick={() => remove(field.name)}>删除</Button>
+                      </Space>
+                    ))}
+                    <Button type="dashed" onClick={() => add()} block>
+                      添加组件
+                    </Button>
+                  </>
+                )}
+              </Form.List>
+            </>
           )}
         </Form>
       </Modal>

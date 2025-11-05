@@ -6,7 +6,8 @@ import {
   ShoppingOutlined,
   AppstoreOutlined,
   TeamOutlined,
-  ToolOutlined
+  ToolOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 
 const { Header, Content, Sider } = Layout;
@@ -17,6 +18,7 @@ const menuItems = [
   { key: '/stock-orders', icon: <ShoppingOutlined />, label: '备货订单' },
   { key: '/products', icon: <AppstoreOutlined />, label: '产品管理' },
   { key: '/production', icon: <ToolOutlined />, label: '生产计划' },
+  { key: '/combo-targets', icon: <BarChartOutlined />, label: '组合目标看板' },
   { key: '/customers', icon: <TeamOutlined />, label: '客户管理' }
 ];
 

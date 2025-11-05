@@ -2,18 +2,122 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const InventoryAdjustment = require('../models/InventoryAdjustment');
+const Shipment = require('../models/Shipment');
 
 // Get all products
 router.get('/', async (req, res, next) => {
   try {
     const { type } = req.query;
     const filter = type ? { type } : {};
-    
+
     const products = await Product.find(filter)
       .populate('components.productId', 'name type')
       .sort({ createdAt: -1 });
-    
+
     res.json(products);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Combo product sales target summary
+router.get('/combo-targets/summary', async (req, res, next) => {
+  try {
+    const year = Number.parseInt(req.query.year, 10) || new Date().getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year + 1, 0, 1);
+
+    const comboProducts = await Product.find({ type: 'combo' })
+      .populate('components.productId', 'name type inventory')
+      .lean();
+
+    if (comboProducts.length === 0) {
+      return res.json({
+        year,
+        combos: [],
+        totals: { target: 0, shipped: 0, remaining: 0, shortage: 0 }
+      });
+    }
+
+    const comboIds = comboProducts.map(product => product._id);
+
+    const shipmentStats = await Shipment.aggregate([
+      {
+        $match: {
+          shippedAt: { $gte: startOfYear, $lt: endOfYear },
+          'shippedItems.productId': { $in: comboIds }
+        }
+      },
+      { $unwind: '$shippedItems' },
+      { $match: { 'shippedItems.productId': { $in: comboIds } } },
+      {
+        $group: {
+          _id: '$shippedItems.productId',
+          totalQuantity: { $sum: '$shippedItems.quantity' }
+        }
+      }
+    ]);
+
+    const shippedMap = shipmentStats.reduce((acc, item) => {
+      acc[item._id.toString()] = item.totalQuantity;
+      return acc;
+    }, {});
+
+    const combos = comboProducts.map(product => {
+      const target = Number(product.annualSalesTarget) || 0;
+      const shipped = shippedMap[product._id.toString()] || 0;
+      const remaining = Math.max(target - shipped, 0);
+
+      const components = (product.components || []).map(component => {
+        const baseProduct = component.productId && component.productId._id ? component.productId : null;
+        const quantityPerCombo = Number(component.quantity) || 0;
+        const plannedQuantity = target * quantityPerCombo;
+        const usedQuantity = shipped * quantityPerCombo;
+        const remainingQuantity = remaining * quantityPerCombo;
+        const currentInventory = baseProduct?.inventory?.current ?? null;
+        const shortage = Math.max(
+          remainingQuantity - (currentInventory ?? 0),
+          0
+        );
+
+        return {
+          productId: baseProduct?._id || component.productId,
+          productName: baseProduct?.name || component.productName,
+          quantityPerCombo,
+          plannedQuantity,
+          usedQuantity,
+          remainingQuantity,
+          currentInventory,
+          shortage
+        };
+      });
+
+      const totalShortage = components.reduce((sum, comp) => sum + comp.shortage, 0);
+
+      return {
+        comboId: product._id,
+        name: product.name,
+        annualSalesTarget: target,
+        shippedQuantity: shipped,
+        remainingQuantity: remaining,
+        completionRate: target > 0 ? Math.min((shipped / target) * 100, 100) : 0,
+        components,
+        totalShortage
+      };
+    });
+
+    const totals = combos.reduce(
+      (acc, combo) => {
+        acc.target += combo.annualSalesTarget;
+        acc.shipped += combo.shippedQuantity;
+        acc.remaining += combo.remainingQuantity;
+        acc.shortage += combo.totalShortage;
+        return acc;
+      },
+      { target: 0, shipped: 0, remaining: 0, shortage: 0 }
+    );
+
+    res.json({ year, combos, totals });
   } catch (err) {
     next(err);
   }
@@ -39,7 +143,12 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const { type, components } = req.body;
-    
+    const productData = { ...req.body };
+
+    if (Object.prototype.hasOwnProperty.call(productData, 'annualSalesTarget')) {
+      productData.annualSalesTarget = Number(productData.annualSalesTarget) || 0;
+    }
+
     // Validate: combo products must have components
     if (type === 'combo' && (!components || components.length === 0)) {
       return res.status(400).json({ error: 'Combo products must have components' });
@@ -55,17 +164,17 @@ router.post('/', async (req, res, next) => {
       for (let comp of components) {
         const baseProduct = await Product.findById(comp.productId);
         if (!baseProduct || baseProduct.type !== 'base') {
-          return res.status(400).json({ 
-            error: `Invalid component: ${comp.productId}. Only base products can be components.` 
+          return res.status(400).json({
+            error: `Invalid component: ${comp.productId}. Only base products can be components.`
           });
         }
         comp.productName = baseProduct.name;
       }
     }
-    
-    const product = new Product(req.body);
+
+    const product = new Product(productData);
     await product.save();
-    
+
     res.status(201).json(product);
   } catch (err) {
     next(err);
@@ -83,6 +192,9 @@ router.put('/:id', async (req, res, next) => {
 
     const originalName = product.name;
     const updateData = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(updateData, 'annualSalesTarget')) {
+      updateData.annualSalesTarget = Number(updateData.annualSalesTarget) || 0;
+    }
     const incomingType = updateData.type || product.type;
 
     const hasComponentsInPayload = Object.prototype.hasOwnProperty.call(updateData, 'components');

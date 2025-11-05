@@ -13,6 +13,7 @@ import StockOrderList from './components/StockOrders/StockOrderList';
 import StockOrderForm from './components/StockOrders/StockOrderForm';
 import StockOrderDetail from './components/StockOrders/StockOrderDetail';
 import ProductionPlan from './components/Production/ProductionPlan';
+import ComboTargetDashboard from './components/ComboTargets/ComboTargetDashboard';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="stock-orders/:id" element={<StockOrderDetail />} />
             <Route path="stock-orders/:id/edit" element={<StockOrderForm />} />
             <Route path="production" element={<ProductionPlan />} />
+            <Route path="combo-targets" element={<ComboTargetDashboard />} />
           </Route>
         </Routes>
       </Router>
