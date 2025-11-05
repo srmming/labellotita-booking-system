@@ -44,7 +44,7 @@ router.get('/combo-targets/summary', async (req, res, next) => {
     const orderStats = await Order.aggregate([
       {
         $match: {
-          status: { $ne: 'cancelled' },
+          status: { $in: ['shipping', 'completed'] },
           createdAt: { $gte: startOfYear, $lt: endOfYear }
         }
       },
