@@ -23,6 +23,11 @@ const productSchema = new mongoose.Schema({
       min: 1
     }
   }],
+  annualSalesTarget: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   // Only for base products
   inventory: {
     current: {

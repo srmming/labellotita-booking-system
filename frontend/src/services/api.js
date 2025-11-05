@@ -36,7 +36,8 @@ export const productAPI = {
   updateInventory: (id, current) => api.patch(`/products/${id}/inventory`, { current }),
   adjustInventory: (id, data) => api.post(`/products/${id}/adjust-inventory`, data),
   getAdjustmentHistory: (id) => api.get(`/products/${id}/adjustment-history`),
-  delete: (id) => api.delete(`/products/${id}`)
+  delete: (id) => api.delete(`/products/${id}`),
+  getComboTargetSummary: (year) => api.get('/products/combo-targets/summary', { params: { year } })
 };
 
 // Order APIs
