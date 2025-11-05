@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const InventoryAdjustment = require('../models/InventoryAdjustment');
-const Shipment = require('../models/Shipment');
+const Order = require('../models/Order');
 
 // Get all products
 router.get('/', async (req, res, next) => {
@@ -41,31 +41,36 @@ router.get('/combo-targets/summary', async (req, res, next) => {
 
     const comboIds = comboProducts.map(product => product._id);
 
-    const shipmentStats = await Shipment.aggregate([
+    const orderStats = await Order.aggregate([
       {
         $match: {
-          shippedAt: { $gte: startOfYear, $lt: endOfYear },
-          'shippedItems.productId': { $in: comboIds }
+          status: { $in: ['shipping', 'completed'] },
+          createdAt: { $gte: startOfYear, $lt: endOfYear }
         }
       },
-      { $unwind: '$shippedItems' },
-      { $match: { 'shippedItems.productId': { $in: comboIds } } },
+      { $unwind: '$items' },
+      {
+        $match: {
+          'items.productId': { $in: comboIds }
+        }
+      },
       {
         $group: {
-          _id: '$shippedItems.productId',
-          totalQuantity: { $sum: '$shippedItems.quantity' }
+          _id: '$items.productId',
+          totalQuantity: { $sum: '$items.quantity' }
         }
       }
     ]);
 
-    const shippedMap = shipmentStats.reduce((acc, item) => {
+    const orderShippedMap = orderStats.reduce((acc, item) => {
       acc[item._id.toString()] = item.totalQuantity;
       return acc;
     }, {});
 
     const combos = comboProducts.map(product => {
       const target = Number(product.annualSalesTarget) || 0;
-      const shipped = shippedMap[product._id.toString()] || 0;
+      const productIdStr = product._id.toString();
+      const shipped = orderShippedMap[productIdStr] ?? 0;
       const remaining = Math.max(target - shipped, 0);
 
       const components = (product.components || []).map(component => {
