@@ -26,35 +26,49 @@ function ComboTargetDashboard() {
     return Array.from({ length: 5 }, (_, index) => startYear + index);
   }, [currentYear]);
 
-  const fetchSummary = async (year) => {
-    try {
-      setLoading(true);
-      const response = await productAPI.getComboTargetSummary(year);
-      const data = response.data || {};
-      const combos = Array.isArray(data.combos) ? data.combos : [];
-      const totalsData = data.totals || {};
-      const baseProductsData = Array.isArray(data.baseProducts) ? data.baseProducts : [];
-
-      setComboSummary(combos);
-      setTotals({
-        target: totalsData.target || 0,
-        shipped: totalsData.shipped || 0,
-        remaining: totalsData.remaining || 0,
-        shortage: totalsData.shortage || 0
-      });
-      setBaseProducts(baseProductsData);
-    } catch (error) {
-      message.error('加载组合销售目标数据失败');
-      setComboSummary([]);
-      setTotals({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
-      setBaseProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchSummary(selectedYear);
+    let cancelled = false;
+
+    const loadSummary = async () => {
+      try {
+        setLoading(true);
+        const response = await productAPI.getComboTargetSummary(selectedYear);
+        if (cancelled) {
+          return;
+        }
+
+        const data = response.data || {};
+        const combos = Array.isArray(data.combos) ? data.combos : [];
+        const totalsData = data.totals || {};
+        const baseProductsData = Array.isArray(data.baseProducts) ? data.baseProducts : [];
+
+        setComboSummary(combos);
+        setTotals({
+          target: totalsData.target || 0,
+          shipped: totalsData.shipped || 0,
+          remaining: totalsData.remaining || 0,
+          shortage: totalsData.shortage || 0
+        });
+        setBaseProducts(baseProductsData);
+      } catch (error) {
+        if (!cancelled) {
+          message.error('加载组合销售目标数据失败');
+          setComboSummary([]);
+          setTotals({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
+          setBaseProducts([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadSummary();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedYear]);
 
   const overallCompletion = useMemo(() => {
