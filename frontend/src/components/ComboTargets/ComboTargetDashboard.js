@@ -60,6 +60,34 @@ function ComboTargetDashboard() {
     return Math.min((totals.shipped / totals.target) * 100, 100);
   }, [totals]);
 
+  const baseProductSummary = useMemo(() => {
+    const map = new Map();
+
+    comboSummary.forEach(combo => {
+      (combo.components || []).forEach(comp => {
+        const key = comp.productId?.toString() || comp.productName;
+        if (!map.has(key)) {
+          map.set(key, {
+            productName: comp.productName,
+            totalPlanned: 0,
+            totalUsed: 0,
+            totalRemaining: 0,
+            currentInventory: comp.currentInventory,
+            shortage: 0
+          });
+        }
+
+        const item = map.get(key);
+        item.totalPlanned += comp.plannedQuantity || 0;
+        item.totalUsed += comp.usedQuantity || 0;
+        item.totalRemaining += comp.remainingQuantity || 0;
+        item.shortage = Math.max(item.totalRemaining - (item.currentInventory || 0), 0);
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.shortage - a.shortage);
+  }, [comboSummary]);
+
   const comboColumns = [
     {
       title: '组合产品',
@@ -153,6 +181,49 @@ function ComboTargetDashboard() {
     }
   ];
 
+  const baseProductColumns = [
+    {
+      title: '基础产品',
+      dataIndex: 'productName',
+      key: 'productName'
+    },
+    {
+      title: '总计划量',
+      dataIndex: 'totalPlanned',
+      key: 'totalPlanned',
+      sorter: (a, b) => a.totalPlanned - b.totalPlanned
+    },
+    {
+      title: '总消耗量',
+      dataIndex: 'totalUsed',
+      key: 'totalUsed',
+      sorter: (a, b) => a.totalUsed - b.totalUsed
+    },
+    {
+      title: '剩余需求',
+      dataIndex: 'totalRemaining',
+      key: 'totalRemaining',
+      sorter: (a, b) => a.totalRemaining - b.totalRemaining
+    },
+    {
+      title: '当前库存',
+      dataIndex: 'currentInventory',
+      key: 'currentInventory',
+      render: (value) =>
+        value === null || value === undefined ? '未知' : value,
+      sorter: (a, b) => (a.currentInventory || 0) - (b.currentInventory || 0)
+    },
+    {
+      title: '缺口',
+      dataIndex: 'shortage',
+      key: 'shortage',
+      render: (value) =>
+        value > 0 ? <Tag color="red">{value}</Tag> : <Tag color="green">无缺口</Tag>,
+      sorter: (a, b) => a.shortage - b.shortage,
+      defaultSortOrder: 'descend'
+    }
+  ];
+
   const expandedRowRender = (record) => (
     <Table
       columns={componentColumns}
@@ -223,12 +294,24 @@ function ComboTargetDashboard() {
         />
       </Card>
 
-      <Card>
+      <Card style={{ marginBottom: 16 }}>
         <Table
           columns={comboColumns}
           dataSource={comboSummary.map(item => ({ ...item, key: item.comboId }))}
           loading={loading}
           expandable={{ expandedRowRender }}
+          pagination={false}
+        />
+      </Card>
+
+      <Card title="基础产品清单汇总">
+        <Table
+          columns={baseProductColumns}
+          dataSource={baseProductSummary.map((item, index) => ({
+            ...item,
+            key: item.productName || index
+          }))}
+          loading={loading}
           pagination={false}
         />
       </Card>
