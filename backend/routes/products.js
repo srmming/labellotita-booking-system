@@ -111,6 +111,78 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       };
     });
 
+    const baseProductsMap = new Map();
+
+    combos.forEach(combo => {
+      (combo.components || []).forEach(component => {
+        if (!component) {
+          return;
+        }
+
+        const key = component.productId
+          ? component.productId.toString()
+          : component.productName;
+
+        if (!key) {
+          return;
+        }
+
+        const plannedQuantity = Number(component.plannedQuantity) || 0;
+        const usedQuantity = Number(component.usedQuantity) || 0;
+        const remainingQuantity = Number(component.remainingQuantity) || 0;
+        const currentInventory =
+          component.currentInventory === null || component.currentInventory === undefined
+            ? null
+            : Number(component.currentInventory);
+
+        if (!baseProductsMap.has(key)) {
+          baseProductsMap.set(key, {
+            productId: component.productId ? component.productId.toString() : null,
+            productName: component.productName || '未知产品',
+            plannedQuantity: 0,
+            usedQuantity: 0,
+            remainingQuantity: 0,
+            currentInventory,
+            comboNames: new Set()
+          });
+        }
+
+        const entry = baseProductsMap.get(key);
+
+        entry.plannedQuantity += plannedQuantity;
+        entry.usedQuantity += usedQuantity;
+        entry.remainingQuantity += remainingQuantity;
+
+        if (currentInventory !== null) {
+          entry.currentInventory = currentInventory;
+        }
+
+        entry.comboNames.add(combo.name);
+      });
+    });
+
+    const baseProducts = Array.from(baseProductsMap.values()).map(entry => {
+      const currentInventory = entry.currentInventory;
+      const shortage =
+        currentInventory === null || currentInventory === undefined
+          ? null
+          : Math.max(entry.remainingQuantity - currentInventory, 0);
+
+      return {
+        productId: entry.productId,
+        productName: entry.productName,
+        plannedQuantity: entry.plannedQuantity,
+        usedQuantity: entry.usedQuantity,
+        remainingQuantity: entry.remainingQuantity,
+        currentInventory,
+        shortage,
+        combosInvolved: entry.comboNames.size,
+        comboNames: Array.from(entry.comboNames)
+      };
+    });
+
+    baseProducts.sort((a, b) => a.productName.localeCompare(b.productName, 'zh-Hans-CN'));
+
     const totals = combos.reduce(
       (acc, combo) => {
         acc.target += combo.annualSalesTarget;
@@ -122,7 +194,7 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       { target: 0, shipped: 0, remaining: 0, shortage: 0 }
     );
 
-    res.json({ year, combos, totals });
+    res.json({ year, combos, totals, baseProducts });
   } catch (err) {
     next(err);
   }

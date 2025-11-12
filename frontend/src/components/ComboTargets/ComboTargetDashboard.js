@@ -19,6 +19,7 @@ function ComboTargetDashboard() {
   const [loading, setLoading] = useState(false);
   const [comboSummary, setComboSummary] = useState([]);
   const [totals, setTotals] = useState({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
+  const [baseProducts, setBaseProducts] = useState([]);
 
   const yearOptions = useMemo(() => {
     const startYear = currentYear - 2;
@@ -32,6 +33,7 @@ function ComboTargetDashboard() {
       const data = response.data || {};
       const combos = Array.isArray(data.combos) ? data.combos : [];
       const totalsData = data.totals || {};
+      const baseProductsData = Array.isArray(data.baseProducts) ? data.baseProducts : [];
 
       setComboSummary(combos);
       setTotals({
@@ -40,10 +42,12 @@ function ComboTargetDashboard() {
         remaining: totalsData.remaining || 0,
         shortage: totalsData.shortage || 0
       });
+      setBaseProducts(baseProductsData);
     } catch (error) {
       message.error('加载组合销售目标数据失败');
       setComboSummary([]);
       setTotals({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
+      setBaseProducts([]);
     } finally {
       setLoading(false);
     }
@@ -165,6 +169,57 @@ function ComboTargetDashboard() {
     />
   );
 
+  const baseProductColumns = [
+    {
+      title: '基础产品',
+      dataIndex: 'productName',
+      key: 'productName'
+    },
+    {
+      title: '关联组合数量',
+      dataIndex: 'combosInvolved',
+      key: 'combosInvolved'
+    },
+    {
+      title: '计划总量',
+      dataIndex: 'plannedQuantity',
+      key: 'plannedQuantity'
+    },
+    {
+      title: '已消耗',
+      dataIndex: 'usedQuantity',
+      key: 'usedQuantity'
+    },
+    {
+      title: '剩余需求',
+      dataIndex: 'remainingQuantity',
+      key: 'remainingQuantity'
+    },
+    {
+      title: '当前库存',
+      dataIndex: 'currentInventory',
+      key: 'currentInventory',
+      render: (value) => (value === null || value === undefined ? '未知' : value)
+    },
+    {
+      title: '缺口',
+      dataIndex: 'shortage',
+      key: 'shortage',
+      render: (value) => {
+        if (value === null || value === undefined) {
+          return <Tag color="default">未知</Tag>;
+        }
+        return value > 0 ? <Tag color="red">{value}</Tag> : <Tag color="green">无</Tag>;
+      }
+    },
+    {
+      title: '涉及组合',
+      dataIndex: 'comboNames',
+      key: 'comboNames',
+      render: (value) => (Array.isArray(value) && value.length > 0 ? value.join('、') : '—')
+    }
+  ];
+
   return (
     <div>
       <div
@@ -220,6 +275,19 @@ function ComboTargetDashboard() {
           percent={Math.round(overallCompletion * 10) / 10}
           status={overallCompletion >= 100 ? 'success' : 'active'}
           style={{ marginTop: 16 }}
+        />
+      </Card>
+
+      <Card style={{ marginBottom: 16 }}>
+        <h2 style={{ marginBottom: 16 }}>基础产品统计</h2>
+        <Table
+          columns={baseProductColumns}
+          dataSource={baseProducts.map(item => ({
+            ...item,
+            key: item.productId || item.productName
+          }))}
+          loading={loading}
+          pagination={false}
         />
       </Card>
 
