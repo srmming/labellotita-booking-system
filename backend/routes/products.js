@@ -35,7 +35,14 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       return res.json({
         year,
         combos: [],
-        totals: { target: 0, shipped: 0, remaining: 0, shortage: 0 }
+        totals: {
+          target: 0,
+          shipped: 0,
+          remaining: 0,
+          shortage: 0,
+          combosCount: 0,
+          baseProductsCount: 0
+        }
       });
     }
 
@@ -67,6 +74,8 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       return acc;
     }, {});
 
+    const baseProductIds = new Set();
+
     const combos = comboProducts.map(product => {
       const target = Number(product.annualSalesTarget) || 0;
       const productIdStr = product._id.toString();
@@ -84,6 +93,11 @@ router.get('/combo-targets/summary', async (req, res, next) => {
           remainingQuantity - (currentInventory ?? 0),
           0
         );
+
+        const baseId = baseProduct?._id?.toString() || component.productId?.toString();
+        if (baseId) {
+          baseProductIds.add(baseId);
+        }
 
         return {
           productId: baseProduct?._id || component.productId,
@@ -121,6 +135,9 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       },
       { target: 0, shipped: 0, remaining: 0, shortage: 0 }
     );
+
+    totals.combosCount = combos.length;
+    totals.baseProductsCount = baseProductIds.size;
 
     res.json({ year, combos, totals });
   } catch (err) {
