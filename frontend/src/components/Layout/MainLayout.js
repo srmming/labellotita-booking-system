@@ -15,10 +15,9 @@ const { Header, Content, Sider } = Layout;
 const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '订单概览' },
   { key: '/orders', icon: <ShoppingOutlined />, label: '订单管理' },
-  { key: '/stock-orders', icon: <ShoppingOutlined />, label: '备货订单' },
   { key: '/products', icon: <AppstoreOutlined />, label: '产品管理' },
   { key: '/production', icon: <ToolOutlined />, label: '生产计划' },
-  { key: '/combo-targets', icon: <BarChartOutlined />, label: '组合目标看板' },
+  { key: '/combo-targets', icon: <BarChartOutlined />, label: '圣诞备货看板' },
   { key: '/customers', icon: <TeamOutlined />, label: '客户管理' }
 ];
 
@@ -73,4 +72,3 @@ function MainLayout() {
 }
 
 export default MainLayout;
-

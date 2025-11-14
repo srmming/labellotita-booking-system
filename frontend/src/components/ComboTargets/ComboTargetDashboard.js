@@ -307,7 +307,7 @@ function ComboTargetDashboard() {
           marginBottom: 16
         }}
       >
-        <h1 style={{ margin: 0 }}>组合销售目标达成情况</h1>
+        <h1 style={{ margin: 0 }}>圣诞备货看板</h1>
         <Space>
           <span>选择年份：</span>
           <Select
