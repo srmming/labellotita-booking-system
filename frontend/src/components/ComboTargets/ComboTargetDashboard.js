@@ -19,6 +19,7 @@ function ComboTargetDashboard() {
   const [loading, setLoading] = useState(false);
   const [comboSummary, setComboSummary] = useState([]);
   const [totals, setTotals] = useState({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
+  const [baseTotals, setBaseTotals] = useState({ shortage: 0 });
 
   const yearOptions = useMemo(() => {
     const startYear = currentYear - 2;
@@ -39,6 +40,56 @@ function ComboTargetDashboard() {
         shipped: totalsData.shipped || 0,
         remaining: totalsData.remaining || 0,
         shortage: totalsData.shortage || 0
+      });
+
+      const baseSummaryMap = {};
+      combos.forEach((combo) => {
+        (combo.components || []).forEach((component) => {
+          const id = component.productId || component.productName;
+          if (!id) {
+            return;
+          }
+
+          if (!baseSummaryMap[id]) {
+            baseSummaryMap[id] = {
+              key: id,
+              productName: component.productName,
+              plannedQuantity: 0,
+              usedQuantity: 0,
+              remainingQuantity: 0,
+              currentInventory: component.currentInventory,
+              shortage: 0
+            };
+          }
+
+          baseSummaryMap[id].plannedQuantity += Number(component.plannedQuantity) || 0;
+          baseSummaryMap[id].usedQuantity += Number(component.usedQuantity) || 0;
+          baseSummaryMap[id].remainingQuantity += Number(component.remainingQuantity) || 0;
+          if (
+            baseSummaryMap[id].currentInventory === null ||
+            baseSummaryMap[id].currentInventory === undefined
+          ) {
+            baseSummaryMap[id].currentInventory = component.currentInventory;
+          }
+        });
+      });
+
+      const baseSummaryList = Object.values(baseSummaryMap).map((item) => {
+        const current = item.currentInventory || 0;
+        const shortage = Math.max(item.remainingQuantity - current, 0);
+        return {
+          ...item,
+          shortage
+        };
+      });
+
+      const totalBaseShortage = baseSummaryList.reduce(
+        (sum, item) => sum + (Number(item.shortage) || 0),
+        0
+      );
+
+      setBaseTotals({
+        shortage: totalBaseShortage
       });
     } catch (error) {
       message.error('加载组合销售目标数据失败');
@@ -153,6 +204,87 @@ function ComboTargetDashboard() {
     }
   ];
 
+  const baseProductColumns = [
+    {
+      title: '基础产品',
+      dataIndex: 'productName',
+      key: 'productName'
+    },
+    {
+      title: '目标总量',
+      dataIndex: 'plannedQuantity',
+      key: 'plannedQuantity'
+    },
+    {
+      title: '已消耗',
+      dataIndex: 'usedQuantity',
+      key: 'usedQuantity'
+    },
+    {
+      title: '剩余需求（汇总）',
+      dataIndex: 'remainingQuantity',
+      key: 'remainingQuantity'
+    },
+    {
+      title: '当前库存',
+      dataIndex: 'currentInventory',
+      key: 'currentInventory',
+      render: (value) =>
+        value === null || value === undefined ? '未知' : value
+    },
+    {
+      title: '缺口（汇总）',
+      dataIndex: 'shortage',
+      key: 'shortage',
+      render: (value) =>
+        value > 0 ? <Tag color="red">{value}</Tag> : <Tag color="green">无</Tag>
+    }
+  ];
+
+  const baseProductSummary = useMemo(() => {
+    const map = {};
+    comboSummary.forEach((combo) => {
+      (combo.components || []).forEach((component) => {
+        const id = component.productId || component.productName;
+        if (!id) {
+          return;
+        }
+
+        if (!map[id]) {
+          map[id] = {
+            key: id,
+            productName: component.productName,
+            plannedQuantity: 0,
+            usedQuantity: 0,
+            remainingQuantity: 0,
+            currentInventory: component.currentInventory,
+            shortage: 0
+          };
+        }
+
+        map[id].plannedQuantity += Number(component.plannedQuantity) || 0;
+        map[id].usedQuantity += Number(component.usedQuantity) || 0;
+        map[id].remainingQuantity += Number(component.remainingQuantity) || 0;
+
+        if (
+          map[id].currentInventory === null ||
+          map[id].currentInventory === undefined
+        ) {
+          map[id].currentInventory = component.currentInventory;
+        }
+      });
+    });
+
+    return Object.values(map).map((item) => {
+      const current = item.currentInventory || 0;
+      const shortage = Math.max(item.remainingQuantity - current, 0);
+      return {
+        ...item,
+        shortage
+      };
+    });
+  }, [comboSummary]);
+
   const expandedRowRender = (record) => (
     <Table
       columns={componentColumns}
@@ -205,7 +337,7 @@ function ComboTargetDashboard() {
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card>
-            <Statistic title="基础产品缺口（件）" value={totals.shortage} />
+            <Statistic title="基础产品缺口（件）" value={baseTotals.shortage || totals.shortage} />
           </Card>
         </Col>
       </Row>
@@ -230,6 +362,16 @@ function ComboTargetDashboard() {
           loading={loading}
           expandable={{ expandedRowRender }}
           pagination={false}
+        />
+      </Card>
+
+      <Card style={{ marginTop: 16 }}>
+        <h2 style={{ marginBottom: 16 }}>基础产品汇总需求</h2>
+        <Table
+          columns={baseProductColumns}
+          dataSource={baseProductSummary}
+          pagination={false}
+          size="small"
         />
       </Card>
     </div>
