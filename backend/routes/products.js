@@ -38,6 +38,8 @@ router.get('/combo-targets/summary', async (req, res, next) => {
         totals: {
           target: 0,
           shipped: 0,
+          reserved: 0,
+          ordered: 0,
           remaining: 0,
           shortage: 0,
           combosCount: 0,
@@ -48,19 +50,15 @@ router.get('/combo-targets/summary', async (req, res, next) => {
 
     const comboIds = comboProducts.map(product => product._id);
 
-    const orderStats = await Order.aggregate([
-      {
-        $match: {
-          status: { $ne: 'cancelled' },
-          createdAt: { $gte: startOfYear, $lt: endOfYear }
-        }
-      },
+    const orderMatchBase = {
+      status: { $ne: 'cancelled' },
+      createdAt: { $gte: startOfYear, $lt: endOfYear }
+    };
+
+    const buildOrderPipeline = (additionalMatch) => ([
+      { $match: { ...orderMatchBase, ...additionalMatch } },
       { $unwind: '$items' },
-      {
-        $match: {
-          'items.productId': { $in: comboIds }
-        }
-      },
+      { $match: { 'items.productId': { $in: comboIds } } },
       {
         $group: {
           _id: '$items.productId',
@@ -69,7 +67,17 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       }
     ]);
 
-    const orderShippedMap = orderStats.reduce((acc, item) => {
+    const [completedOrderStats, reservedOrderStats] = await Promise.all([
+      Order.aggregate(buildOrderPipeline({ status: 'completed' })),
+      Order.aggregate(buildOrderPipeline({ status: { $nin: ['cancelled', 'completed'] } }))
+    ]);
+
+    const completedOrderMap = completedOrderStats.reduce((acc, item) => {
+      acc[item._id.toString()] = item.totalQuantity;
+      return acc;
+    }, {});
+
+    const reservedOrderMap = reservedOrderStats.reduce((acc, item) => {
       acc[item._id.toString()] = item.totalQuantity;
       return acc;
     }, {});
@@ -79,14 +87,18 @@ router.get('/combo-targets/summary', async (req, res, next) => {
     const combos = comboProducts.map(product => {
       const target = Number(product.annualSalesTarget) || 0;
       const productIdStr = product._id.toString();
-      const shipped = orderShippedMap[productIdStr] ?? 0;
-      const remaining = Math.max(target - shipped, 0);
+      const shipped = completedOrderMap[productIdStr] ?? 0;
+      const reserved = reservedOrderMap[productIdStr] ?? 0;
+      const ordered = shipped + reserved;
+      const remaining = Math.max(target - ordered, 0);
 
       const components = (product.components || []).map(component => {
         const baseProduct = component.productId && component.productId._id ? component.productId : null;
         const quantityPerCombo = Number(component.quantity) || 0;
         const plannedQuantity = target * quantityPerCombo;
-        const usedQuantity = shipped * quantityPerCombo;
+        const shippedQuantity = shipped * quantityPerCombo;
+        const reservedQuantity = reserved * quantityPerCombo;
+        const usedQuantity = ordered * quantityPerCombo;
         const remainingQuantity = remaining * quantityPerCombo;
         const currentInventory = baseProduct?.inventory?.current ?? null;
         const shortage = Math.max(
@@ -104,6 +116,8 @@ router.get('/combo-targets/summary', async (req, res, next) => {
           productName: baseProduct?.name || component.productName,
           quantityPerCombo,
           plannedQuantity,
+          shippedQuantity,
+          reservedQuantity,
           usedQuantity,
           remainingQuantity,
           currentInventory,
@@ -118,8 +132,10 @@ router.get('/combo-targets/summary', async (req, res, next) => {
         name: product.name,
         annualSalesTarget: target,
         shippedQuantity: shipped,
+        reservedQuantity: reserved,
+        orderedQuantity: ordered,
         remainingQuantity: remaining,
-        completionRate: target > 0 ? Math.min((shipped / target) * 100, 100) : 0,
+        completionRate: target > 0 ? Math.min((ordered / target) * 100, 100) : 0,
         components,
         totalShortage
       };
@@ -129,11 +145,13 @@ router.get('/combo-targets/summary', async (req, res, next) => {
       (acc, combo) => {
         acc.target += combo.annualSalesTarget;
         acc.shipped += combo.shippedQuantity;
+        acc.reserved += combo.reservedQuantity;
+        acc.ordered += combo.orderedQuantity;
         acc.remaining += combo.remainingQuantity;
         acc.shortage += combo.totalShortage;
         return acc;
       },
-      { target: 0, shipped: 0, remaining: 0, shortage: 0 }
+      { target: 0, shipped: 0, reserved: 0, ordered: 0, remaining: 0, shortage: 0 }
     );
 
     totals.combosCount = combos.length;

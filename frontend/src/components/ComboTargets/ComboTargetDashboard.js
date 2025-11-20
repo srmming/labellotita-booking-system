@@ -5,8 +5,6 @@ import {
   message,
   Select,
   Statistic,
-  Row,
-  Col,
   Progress,
   Tag,
   Space
@@ -18,7 +16,14 @@ function ComboTargetDashboard() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [loading, setLoading] = useState(false);
   const [comboSummary, setComboSummary] = useState([]);
-  const [totals, setTotals] = useState({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
+  const [totals, setTotals] = useState({
+    target: 0,
+    shipped: 0,
+    reserved: 0,
+    ordered: 0,
+    remaining: 0,
+    shortage: 0
+  });
   const [baseTotals, setBaseTotals] = useState({ shortage: 0 });
 
   const yearOptions = useMemo(() => {
@@ -38,6 +43,8 @@ function ComboTargetDashboard() {
       setTotals({
         target: totalsData.target || 0,
         shipped: totalsData.shipped || 0,
+        reserved: totalsData.reserved || 0,
+        ordered: totalsData.ordered || 0,
         remaining: totalsData.remaining || 0,
         shortage: totalsData.shortage || 0
       });
@@ -55,6 +62,8 @@ function ComboTargetDashboard() {
               key: id,
               productName: component.productName,
               plannedQuantity: 0,
+              shippedQuantity: 0,
+              reservedQuantity: 0,
               usedQuantity: 0,
               remainingQuantity: 0,
               currentInventory: component.currentInventory,
@@ -63,6 +72,8 @@ function ComboTargetDashboard() {
           }
 
           baseSummaryMap[id].plannedQuantity += Number(component.plannedQuantity) || 0;
+          baseSummaryMap[id].shippedQuantity += Number(component.shippedQuantity) || 0;
+          baseSummaryMap[id].reservedQuantity += Number(component.reservedQuantity) || 0;
           baseSummaryMap[id].usedQuantity += Number(component.usedQuantity) || 0;
           baseSummaryMap[id].remainingQuantity += Number(component.remainingQuantity) || 0;
           if (
@@ -94,7 +105,7 @@ function ComboTargetDashboard() {
     } catch (error) {
       message.error('加载组合销售目标数据失败');
       setComboSummary([]);
-      setTotals({ target: 0, shipped: 0, remaining: 0, shortage: 0 });
+      setTotals({ target: 0, shipped: 0, reserved: 0, ordered: 0, remaining: 0, shortage: 0 });
     } finally {
       setLoading(false);
     }
@@ -108,7 +119,7 @@ function ComboTargetDashboard() {
     if (!totals.target) {
       return 0;
     }
-    return Math.min((totals.shipped / totals.target) * 100, 100);
+    return Math.min((totals.ordered / totals.target) * 100, 100);
   }, [totals]);
 
   const comboColumns = [
@@ -126,6 +137,11 @@ function ComboTargetDashboard() {
       title: '已出货',
       dataIndex: 'shippedQuantity',
       key: 'shippedQuantity'
+    },
+    {
+      title: '已预定',
+      dataIndex: 'reservedQuantity',
+      key: 'reservedQuantity'
     },
     {
       title: '目标差额',
@@ -179,9 +195,14 @@ function ComboTargetDashboard() {
       key: 'plannedQuantity'
     },
     {
-      title: '已消耗',
-      dataIndex: 'usedQuantity',
-      key: 'usedQuantity'
+      title: '出货数量',
+      dataIndex: 'shippedQuantity',
+      key: 'shippedQuantity'
+    },
+    {
+      title: '预定数量',
+      dataIndex: 'reservedQuantity',
+      key: 'reservedQuantity'
     },
     {
       title: '剩余需求',
@@ -216,9 +237,14 @@ function ComboTargetDashboard() {
       key: 'plannedQuantity'
     },
     {
-      title: '已消耗',
-      dataIndex: 'usedQuantity',
-      key: 'usedQuantity'
+      title: '出货数量',
+      dataIndex: 'shippedQuantity',
+      key: 'shippedQuantity'
+    },
+    {
+      title: '预定数量',
+      dataIndex: 'reservedQuantity',
+      key: 'reservedQuantity'
     },
     {
       title: '剩余需求（汇总）',
@@ -255,6 +281,8 @@ function ComboTargetDashboard() {
             key: id,
             productName: component.productName,
             plannedQuantity: 0,
+            shippedQuantity: 0,
+            reservedQuantity: 0,
             usedQuantity: 0,
             remainingQuantity: 0,
             currentInventory: component.currentInventory,
@@ -263,6 +291,8 @@ function ComboTargetDashboard() {
         }
 
         map[id].plannedQuantity += Number(component.plannedQuantity) || 0;
+        map[id].shippedQuantity += Number(component.shippedQuantity) || 0;
+        map[id].reservedQuantity += Number(component.reservedQuantity) || 0;
         map[id].usedQuantity += Number(component.usedQuantity) || 0;
         map[id].remainingQuantity += Number(component.remainingQuantity) || 0;
 
@@ -319,28 +349,23 @@ function ComboTargetDashboard() {
         </Space>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic title="年度目标（套）" value={totals.target} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic title="已出货（套）" value={totals.shipped} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic title="剩余目标（套）" value={totals.remaining} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic title="基础产品缺口（件）" value={baseTotals.shortage || totals.shortage} />
-          </Card>
-        </Col>
-      </Row>
+      <Space wrap size={16} style={{ marginBottom: 16 }}>
+        <Card style={{ minWidth: 220 }}>
+          <Statistic title="年度目标（套）" value={totals.target} />
+        </Card>
+        <Card style={{ minWidth: 220 }}>
+          <Statistic title="已出货（套）" value={totals.shipped} />
+        </Card>
+        <Card style={{ minWidth: 220 }}>
+          <Statistic title="已预定（套）" value={totals.reserved} />
+        </Card>
+        <Card style={{ minWidth: 220 }}>
+          <Statistic title="剩余目标（套）" value={totals.remaining} />
+        </Card>
+        <Card style={{ minWidth: 220 }}>
+          <Statistic title="基础产品缺口（件）" value={baseTotals.shortage || totals.shortage} />
+        </Card>
+      </Space>
 
       <Card style={{ marginBottom: 16 }}>
         <Statistic
