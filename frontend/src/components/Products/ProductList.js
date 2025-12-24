@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Tabs, Table, Button, Modal, Form, Input, Select, InputNumber, 
-  message, Space, Tag, Popconfirm, Radio, Pagination 
+import {
+  Tabs, Table, Button, Modal, Form, Input, Select, InputNumber,
+  message, Space, Tag, Popconfirm, Radio, Pagination
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SwapOutlined, HistoryOutlined } from '@ant-design/icons';
 import { productAPI } from '../../services/api';
 import { PRODUCT_TYPE_LABELS, PRODUCT_TYPE_COLORS } from '../../utils/constants';
-
-const { TabPane } = Tabs;
 
 function ProductList() {
   const [products, setProducts] = useState([]);
@@ -299,17 +297,12 @@ function ProductList() {
     }
   ];
 
-  return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h1>产品管理</h1>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增产品
-        </Button>
-      </div>
-
-      <Tabs defaultActiveKey="combo">
-        <TabPane tab="组合产品" key="combo">
+  const tabItems = [
+    {
+      key: 'combo',
+      label: '组合产品',
+      children: (
+        <>
           <Table
             columns={comboColumns}
             dataSource={paginatedComboProducts}
@@ -326,9 +319,14 @@ function ProductList() {
               showTotal={(total) => `共 ${total} 条`}
             />
           </div>
-        </TabPane>
-
-        <TabPane tab="基础产品" key="base">
+        </>
+      )
+    },
+    {
+      key: 'base',
+      label: '基础产品',
+      children: (
+        <>
           <Table
             columns={baseColumns}
             dataSource={paginatedBaseProducts}
@@ -345,8 +343,21 @@ function ProductList() {
               showTotal={(total) => `共 ${total} 条`}
             />
           </div>
-        </TabPane>
-      </Tabs>
+        </>
+      )
+    }
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <h1>产品管理</h1>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增产品
+        </Button>
+      </div>
+
+      <Tabs defaultActiveKey="combo" items={tabItems} />
 
       {/* 产品编辑/创建弹窗 */}
       <Modal
