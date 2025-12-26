@@ -10,14 +10,16 @@ import { orderAPI } from '../../services/api';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../utils/constants';
 
 function Dashboard() {
-  const [stats, setStats] = useState({
+  const defaultStats = {
     totalOrders: 0,
     pendingOrders: 0,
     shippingOrders: 0,
     completedOrders: 0,
     totalRevenue: 0,
     upcomingShipments: []
-  });
+  };
+
+  const [stats, setStats] = useState(defaultStats);
   const [recentOrders, setRecentOrders] = useState([]);
   const [upcomingShipments, setUpcomingShipments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,17 +35,22 @@ function Dashboard() {
         orderAPI.getStats(),
         orderAPI.getAll()
       ]);
-      
-      setStats(statsRes.data || {
-        totalOrders: 0,
-        pendingOrders: 0,
-        shippingOrders: 0,
-        completedOrders: 0,
-        totalRevenue: 0,
-        upcomingShipments: []
+
+      const sanitizeOrders = (orders) => (
+        Array.isArray(orders) ? orders.filter((order) => order && order._id) : []
+      );
+
+      const statsData = statsRes.data || defaultStats;
+      const cleanedUpcomingShipments = sanitizeOrders(statsData.upcomingShipments);
+      const cleanedRecentOrders = sanitizeOrders(ordersRes.data).slice(0, 10);
+
+      setStats({
+        ...defaultStats,
+        ...statsData,
+        upcomingShipments: cleanedUpcomingShipments
       });
-      setRecentOrders(Array.isArray(ordersRes.data) ? ordersRes.data.slice(0, 10) : []);
-      setUpcomingShipments(statsRes.data?.upcomingShipments || []);
+      setRecentOrders(cleanedRecentOrders);
+      setUpcomingShipments(cleanedUpcomingShipments);
     } catch (error) {
       message.error('加载数据失败');
       setRecentOrders([]);
@@ -78,7 +85,7 @@ function Dashboard() {
       title: '产品数量',
       dataIndex: 'items',
       key: 'items',
-      render: (items) => items.length
+      render: (items = []) => items.length
     },
     {
       title: '状态',
@@ -113,13 +120,17 @@ function Dashboard() {
       title: '产品',
       dataIndex: 'items',
       key: 'items',
-      render: (items) => (
-        <div>
-          {items.map((item, idx) => (
-            <div key={idx}>{item.productName} x {item.quantity}</div>
-          ))}
-        </div>
-      )
+      render: (items) => {
+        const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
+
+        return (
+          <div>
+            {safeItems.map((item, idx) => (
+              <div key={item._id || idx}>{item.productName} x {item.quantity}</div>
+            ))}
+          </div>
+        );
+      }
     },
     {
       title: '预计出货时间',
