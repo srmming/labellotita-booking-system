@@ -60,7 +60,7 @@ function ProductList() {
       ...product,
       annualSalesTarget: product.annualSalesTarget ?? 0,
       components: product.components?.map(c => ({
-        productId: c.productId._id || c.productId,
+        productId: c.productId?._id ?? c.productId ?? c.productName,
         quantity: c.quantity
       }))
     });
@@ -175,11 +175,15 @@ function ProductList() {
       key: 'components',
       render: (_, record) => (
         <div>
-          {record.components?.map(c => (
-            <div key={c.productId._id || c.productId}>
-              {c.productName} x {c.quantity}
-            </div>
-          ))}
+          {record.components?.map((c, index) => {
+            const componentId = c.productId?._id ?? c.productId ?? c.productName ?? `component-${index}`;
+            const componentName = c.productId?.name ?? c.productName ?? '未知组件';
+            return (
+              <div key={componentId}>
+                {componentName} x {c.quantity}
+              </div>
+            );
+          })}
         </div>
       )
     },
